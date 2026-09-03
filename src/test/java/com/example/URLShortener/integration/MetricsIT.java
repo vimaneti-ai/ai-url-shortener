@@ -1,6 +1,7 @@
 package com.example.URLShortener.integration;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.TestPropertySource;
 
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasKey;
@@ -9,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@TestPropertySource(properties = "management.health.redis.enabled=false")
 class MetricsIT extends IntegrationTestBase {
 
     @Test
