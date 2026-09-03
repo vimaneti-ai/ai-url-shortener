@@ -26,7 +26,7 @@ describe('AppComponent', () => {
 
   it('opens a short URL only when the user activates it', () => {
     const app = TestBed.createComponent(AppComponent).componentInstance;
-    app.result = {shortUrl:'http://localhost:8080/api/v1/code',shortCode:'code',longUrl:'https://example.com'} as ShortenResponse;
+    app.result = {shortUrl:'http://localhost:8080/code',shortCode:'code',longUrl:'https://example.com'} as ShortenResponse;
     const open = spyOn(window, 'open');
 
     app.openShortUrl();

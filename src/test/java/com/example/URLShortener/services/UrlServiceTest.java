@@ -38,13 +38,13 @@ class UrlServiceTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
         urlService = new UrlService(urlRepository, clickEventRepository, redisTemplate);
-        org.springframework.test.util.ReflectionTestUtils.setField(urlService, "baseUrl", "http://localhost:8080/api/v1");
+        org.springframework.test.util.ReflectionTestUtils.setField(urlService, "baseUrl", "http://localhost:8080");
     }
 
     @Test
     void createShortUrl_generatesBase62FromId_whenNoCustomAlias() {
         URLRequest request = new URLRequest();
-        request.setLongUrl("https://example.com");
+        request.setUrl("https://example.com");
 
         when(urlRepository.save(any(URL.class))).thenAnswer(invocation -> {
             URL u = invocation.getArgument(0);
@@ -66,7 +66,7 @@ class UrlServiceTest {
     @Test
     void createShortUrl_throwsConflict_whenCustomAliasExists() {
         URLRequest request = new URLRequest();
-        request.setLongUrl("https://example.com");
+        request.setUrl("https://example.com");
         request.setCustomAlias("alias");
 
         when(urlRepository.existsByShortUrl("alias")).thenReturn(true);
@@ -82,7 +82,7 @@ class UrlServiceTest {
         when(urlRepository.findByShortUrlAndActiveTrue("abc123")).thenReturn(Optional.of(existing));
 
         URLRequest request = new URLRequest();
-        request.setLongUrl("https://example.com");
+        request.setUrl("https://example.com");
 
         URLResponse response = urlService.createShortUrl(request);
 
@@ -98,7 +98,7 @@ class UrlServiceTest {
         when(urlRepository.findByLongUrlAndActiveTrue("https://example.com")).thenReturn(Optional.of(existing));
 
         URLRequest request = new URLRequest();
-        request.setLongUrl("https://example.com");
+        request.setUrl("https://example.com");
 
         URLResponse response = urlService.createShortUrl(request);
 
@@ -121,7 +121,7 @@ class UrlServiceTest {
         });
 
         URLRequest request = new URLRequest();
-        request.setLongUrl("https://example.com");
+        request.setUrl("https://example.com");
 
         URLResponse response = urlService.createShortUrl(request);
 
@@ -145,7 +145,7 @@ class UrlServiceTest {
         });
 
         URLRequest request = new URLRequest();
-        request.setLongUrl("https://example.com");
+        request.setUrl("https://example.com");
 
         URLResponse response = urlService.createShortUrl(request);
 
@@ -212,7 +212,7 @@ class UrlServiceTest {
         when(urlRepository.save(any(URL.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         URLUpdateRequest request = new URLUpdateRequest();
-        request.setLongUrl("https://new.com");
+        request.setUrl("https://new.com");
         LocalDateTime future = LocalDateTime.now().plusDays(1);
         request.setExpiresAt(future);
 
@@ -234,7 +234,7 @@ class UrlServiceTest {
         when(urlRepository.save(any(URL.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         URLUpdateRequest request = new URLUpdateRequest();
-        request.setLongUrl("https://old.com");
+        request.setUrl("https://old.com");
         request.setExpiresAt(null);
 
         urlService.updateShortUrl("code", request);
@@ -249,7 +249,7 @@ class UrlServiceTest {
         when(urlRepository.findByShortUrl("missing")).thenReturn(Optional.empty());
 
         URLUpdateRequest request = new URLUpdateRequest();
-        request.setLongUrl("https://new.com");
+        request.setUrl("https://new.com");
 
         assertThrows(UrlService.UrlNotFoundException.class, () -> urlService.updateShortUrl("missing", request));
     }

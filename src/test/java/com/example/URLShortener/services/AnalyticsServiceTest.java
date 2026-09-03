@@ -23,7 +23,7 @@ class AnalyticsServiceTest {
     void setUp() {
         clickEventRepository = mock(ClickEventRepository.class);
         analyticsService = new AnalyticsService(clickEventRepository);
-        org.springframework.test.util.ReflectionTestUtils.setField(analyticsService, "baseUrl", "http://localhost:8080/api/v1");
+        org.springframework.test.util.ReflectionTestUtils.setField(analyticsService, "baseUrl", "http://localhost:8080");
     }
 
     @Test
@@ -84,9 +84,9 @@ class AnalyticsServiceTest {
 
         AnalyticsResponse response = analyticsService.getStats("xyz");
 
-        assertThat(response.getShortUrl()).isEqualTo("http://localhost:8080/api/v1/xyz");
+        assertThat(response.getShortUrl()).isEqualTo("http://localhost:8080/xyz");
         assertThat(response.getShortCode()).isEqualTo("xyz");
-        assertThat(response.getTotalClicks()).isEqualTo(150L);
+        assertThat(response.getClicks()).isEqualTo(150L);
         assertThat(response.getUniqueVisitors()).isEqualTo(2L);
         assertThat(response.getCountries()).containsEntry("United States", 1L).containsEntry("Germany", 1L);
         assertThat(response.getRecentClicks()).hasSize(2);

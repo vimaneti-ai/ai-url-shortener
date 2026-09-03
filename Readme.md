@@ -10,7 +10,7 @@ A full-stack URL shortener that creates custom, expiring links and provides clic
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue?logo=postgresql)
 ![Redis](https://img.shields.io/badge/Redis-latest-red?logo=redis)
 ![Coverage](https://img.shields.io/badge/Coverage-89.6%25-brightgreen.svg)
-![Tests](https://img.shields.io/badge/Tests-50%20passed-brightgreen.svg)
+![Tests](https://img.shields.io/badge/Tests-53%20passed-brightgreen.svg)
 ![Live](https://img.shields.io/badge/Live-short.vinodmaneti.com-6f42c1)
 
 ## Live application
@@ -47,7 +47,8 @@ reproduction steps.
 - **Graceful Degradation** — redirects still work if Kafka is down
 - **Consistent API Errors** — centralized `@RestControllerAdvice` returns structured JSON errors
 - **Restricted Actuator** — public nginx exposes only basic `/actuator/health`; sensitive actuator endpoints are not exposed
-- **Test Coverage** — 50 unit tests, 89.6% line coverage, 80% minimum enforced by JaCoCo
+- **CI/CD** — GitHub Actions tests both apps, validates Docker images, and deploys `main` to EC2 through short-lived AWS OIDC credentials and SSM (no stored SSH or AWS access keys)
+- **Test Coverage** — 53 unit tests, 89.6% line coverage, 80% minimum enforced by JaCoCo
 
 ![Analytics Dashboard](docs/images/analytics.png)
 
@@ -194,7 +195,7 @@ POST /api/v1/shorten
 Content-Type: application/json
 
 {
-  "longUrl": "https://example.com/very/long/path",
+  "url": "https://example.com/very/long/path",
   "customAlias": "my-link",
   "expiresAt": "2026-12-31T23:59:59"
 }
@@ -202,7 +203,7 @@ Content-Type: application/json
 
 | Field         | Required | Description                                       |
 | ------------- | -------- | --------------------------------------------------|
-| `longUrl`     | ✅        | Target URL to shorten                             |
+| `url`         | ✅        | Target URL to shorten                             |
 | `customAlias` | ❌        | Desired short code (1–8 chars, Alphanumeric only) |
 | `expiresAt`   | ❌        | ISO-8601 datetime for expiry                      |
 
@@ -210,7 +211,7 @@ Content-Type: application/json
 
 ```json
 {
-  "shortUrl": "http://localhost:8080/api/v1/aB3xYz1",
+  "shortUrl": "http://localhost:8080/aB3xYz1",
   "shortCode": "aB3xYz1",
   "longUrl": "https://example.com/very/long/path",
   "expiresAt": "2026-12-31T23:59:59"
@@ -222,12 +223,12 @@ Content-Type: application/json
 - `400 Bad Request` — validation failure.
 - `429 Too Many Requests` — rate limit exceeded.
 
-> **Duplicate detection**: shortening the same `longUrl` twice returns the existing active short code instead of minting a new one. The check is a Redis lookup (`long:{longUrl}` → short code) backed by an authoritative DB lookup (`findByLongUrlAndActiveTrue`) so it still catches duplicates after the 5-minute cache entry has expired or Redis has restarted — the cache is a fast path, not the source of truth. If the existing mapping has expired, it's deactivated and a fresh code is issued instead.
+> **Duplicate detection**: shortening the same destination URL twice returns the existing active short code instead of minting a new one. The check is a Redis lookup (`long:{longUrl}` → short code) backed by an authoritative DB lookup (`findByLongUrlAndActiveTrue`) so it still catches duplicates after the 5-minute cache entry has expired or Redis has restarted — the cache is a fast path, not the source of truth. If the existing mapping has expired, it's deactivated and a fresh code is issued instead.
 
 ### Redirect Short URL
 
 ```http
-GET /api/v1/{shortCode}
+GET /{shortCode}
 ```
 
 | Status          | Condition                                   |
@@ -242,18 +243,18 @@ GET /api/v1/{shortCode}
 ### Update Short URL
 
 ```http
-PUT /api/v1/{shortCode}
+PUT /api/v1/shorten/{shortCode}
 Content-Type: application/json
 
 {
-  "longUrl": "https://example.com/new-destination",
+  "url": "https://example.com/new-destination",
   "expiresAt": "2027-01-01T00:00:00"
 }
 ```
 
 | Field       | Required | Description                                                              |
 | ----------- | -------- | ------------------------------------------------------------------------|
-| `longUrl`   | ✅        | New destination URL                                                     |
+| `url`       | ✅        | New destination URL                                                     |
 | `expiresAt` | ❌        | New ISO-8601 expiry, or omit/`null` to clear it and reactivate the link |
 
 The short code itself cannot be changed — it's the resource identifier. Moving `expiresAt` into the future (or clearing it) automatically reactivates a previously expired link.
@@ -267,7 +268,7 @@ The short code itself cannot be changed — it's the resource identifier. Moving
 ### Delete Short URL
 
 ```http
-DELETE /api/v1/{shortCode}
+DELETE /api/v1/shorten/{shortCode}
 ```
 
 Permanently removes the short URL and its click history (cascades to `click_events`).
@@ -287,9 +288,9 @@ GET /api/v1/analytics/{shortCode}
 
 ```json
 {
-  "shortUrl": "http://localhost:8080/api/v1/aB3xYz1",
+  "shortUrl": "http://localhost:8080/aB3xYz1",
   "shortCode": "aB3xYz1",
-  "totalClicks": 132,
+  "clicks": 132,
   "uniqueVisitors": 87,
   "countries": {
     "Germany": 14,
@@ -350,7 +351,7 @@ All config lives in `src/main/resources/application.yaml`:
 | Redis host/port          | `localhost:6379`                                 |
 | Kafka bootstrap servers  | `localhost:9092`                                 |
 | Kafka consumer group     | `analytics-consumer-group`                       |
-| Base URL for short links | `http://localhost:8080/api/v1`                   |
+| Base URL for short links | `http://localhost:8080`                          |
 | Rate limit               | `20 requests per minute per IP`                  |
 | Cleanup Cron             | `0 0 * * * *` (Runs hourly)                      |
 

@@ -11,7 +11,7 @@ public class URLUpdateRequest {
 
     @NotBlank(message = "Destination URL is required")
     @Pattern(regexp = "^(https?://).*$", message = "URL must start with http:// or https://")
-    private String longUrl;
+    private String url;
 
     private LocalDateTime expiresAt;
 }

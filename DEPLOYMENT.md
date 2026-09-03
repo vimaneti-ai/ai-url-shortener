@@ -37,7 +37,7 @@ docker run -p 8080:8080 \
   -e SPRING_DATA_REDIS_PORT=6379 \
   -e SPRING_DATA_REDIS_SSL=true \
   -e KAFKA_SERVERS=<kafka-bootstrap-host:port> \
-  -e APP_BASE_URL=https://your-domain.example/api/v1 \
+  -e APP_BASE_URL=https://your-domain.example \
   -e RATE_LIMIT=20 \
   url-shortener
 ```
@@ -112,7 +112,7 @@ base file. On EC2, set `FRONTEND_PORT=4200`, a strong `POSTGRES_PASSWORD`, and t
 URL in the ignored `.env`, then layer the tracked production override on top:
 
 ```env
-APP_BASE_URL=https://short.vinodmaneti.com/api/v1
+APP_BASE_URL=https://short.vinodmaneti.com
 ```
 
 ```bash
@@ -178,6 +178,39 @@ Confirm HTTP redirects and the proxied health endpoint remains available over HT
 curl -I http://short.vinodmaneti.com
 curl https://short.vinodmaneti.com/actuator/health
 ```
+
+## GitHub Actions CI/CD
+
+`.github/workflows/ci-deploy.yml` validates pull requests and pushes with four ordered jobs:
+
+1. Backend tests and the JaCoCo gate run in parallel with frontend tests and the production build.
+2. Both Docker images and the merged production Compose configuration are validated after tests pass.
+3. A push to `main` assumes a repository-scoped AWS role through GitHub OIDC.
+4. AWS Systems Manager Run Command updates the EC2 checkout and recreates the Compose stack.
+5. The workflow polls the public HTTPS health endpoint and fails unless it returns an `UP` status.
+
+The deploy job uses the GitHub `production` environment with these environment variables:
+
+```text
+AWS_ROLE_ARN=arn:aws:iam::227498831542:role/GitHubActionsUrlShortenerDeployRole
+AWS_REGION=us-east-2
+EC2_INSTANCE_ID=i-0ac29993035d7d5ee
+```
+
+No EC2 private key or long-lived AWS access key is stored in GitHub. The OIDC role may only send
+`AWS-RunShellScript` to this instance and read that command's result. EC2 itself uses an instance
+role with `AmazonSSMManagedInstanceCore` so the SSM agent can receive commands.
+
+Before deployment, the workflow checks that the ignored EC2 `.env` exists and contains exactly:
+
+```env
+FRONTEND_PORT=4200
+APP_BASE_URL=https://short.vinodmaneti.com
+```
+
+It then fetches `main` and runs `git reset --hard origin/main`. Tracked EC2 edits are intentionally
+discarded so the server matches GitHub exactly; the ignored `.env` and Docker volumes remain. Make
+all source-controlled changes locally and push them rather than editing tracked files on EC2.
 
 To inspect the fully merged configuration before starting it:
 

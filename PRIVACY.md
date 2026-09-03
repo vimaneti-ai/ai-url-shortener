@@ -44,7 +44,7 @@ application's control. See their own privacy policies for how they handle logged
 
 - **Click data is retained for as long as the parent short URL exists.** There is no independent
   retention limit or automatic purge of old click events on their own — deleting them happens only
-  as a side effect of the short URL itself being removed (via the `DELETE /api/v1/{code}` endpoint,
+  as a side effect of the short URL itself being removed (via the `DELETE /api/v1/shorten/{code}` endpoint,
   or automatically by the hourly cleanup job once a URL's `expiresAt` has passed, which cascades to
   delete its click history along with it). A short URL created without an expiration date will
   retain its full click history indefinitely.
@@ -55,7 +55,7 @@ application's control. See their own privacy policies for how they handle logged
 
 Because there are no accounts or sessions, there is no way for this application to answer "what
 data exists about me" or "delete my data" as a general request — the only mechanism is knowing a
-specific short code and calling `DELETE /api/v1/{code}`, which removes that link's destination and
+specific short code and calling `DELETE /api/v1/shorten/{code}`, which removes that link's destination and
 its entire click history (including any IP addresses and resolved countries tied to it). If you
 need per-visitor data-subject rights (access, deletion, export) as a compliance requirement, that
 is not built into this application and would need to be added — for example by requiring

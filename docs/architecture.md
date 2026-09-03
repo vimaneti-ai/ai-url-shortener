@@ -87,7 +87,7 @@ system nginx is deliberately outside Compose so it can own ports 80/443 and let 
    evaluated and rejected — it returns a Cloudflare bot-challenge page to any server-side request
    regardless of User-Agent, confirmed by direct testing, not assumption.)
 7. **CleanupService** (`@Scheduled`, hourly) — hard-deletes expired `urls` rows and their
-   `click_events` (cascade), and evicts the corresponding Redis keys. The `DELETE /api/v1/{code}`
+   `click_events` (cascade), and evicts the corresponding Redis keys. The `DELETE /api/v1/shorten/{code}`
    endpoint reuses this exact same delete-and-evict sequence for user-initiated deletion.
 8. **Angular SPA** (`frontend/`) — a single component (no router, no lazy modules) that toggles
    between a shorten view and an analytics/manage view. Talks to the API over relative `/api/v1/*`

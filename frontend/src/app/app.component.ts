@@ -13,7 +13,7 @@ export class AppComponent {
     this.error='';
     if (!/^https?:\/\//i.test(this.longUrl.trim())) { this.error='Enter a URL beginning with http:// or https://.'; return; }
     this.loading=true;
-    this.api.shortenUrl({longUrl:this.longUrl.trim(),customAlias:this.alias.trim()||undefined,expiresAt:this.expiry||undefined}).subscribe({
+    this.api.shortenUrl({url:this.longUrl.trim(),customAlias:this.alias.trim()||undefined,expiresAt:this.expiry||undefined}).subscribe({
       next:r=>{this.result=r;this.code=r.shortCode;this.loading=false;},
       error:e=>{this.error=e.status===409?'That alias is already in use.':'Unable to create the short link.';this.loading=false;}
     });
@@ -31,7 +31,7 @@ export class AppComponent {
     this.editError=''; this.editSuccess=false;
     if (!/^https?:\/\//i.test(this.editLongUrl.trim())) { this.editError='Enter a URL beginning with http:// or https://.'; return; }
     this.editLoading=true;
-    this.api.updateUrl(this.code, {longUrl:this.editLongUrl.trim(), expiresAt:this.editExpiry||undefined}).subscribe({
+    this.api.updateUrl(this.code, {url:this.editLongUrl.trim(), expiresAt:this.editExpiry||undefined}).subscribe({
       next:()=>{this.editLoading=false;this.editSuccess=true;this.editLongUrl='';this.editExpiry='';setTimeout(()=>this.editSuccess=false,2500);this.loadAnalytics(this.code);},
       error:e=>{this.editLoading=false;this.editError=e.status===404?'Short code not found.':'Unable to update the link.';}
     });

@@ -10,7 +10,7 @@ import java.util.Map;
 public class AnalyticsResponse {
     private String shortUrl;
     private String shortCode;
-    private long totalClicks;
+    private long clicks;
     private long uniqueVisitors;
     private Map<String, Long> countries;
     private List<ClickDetails> recentClicks;

@@ -22,7 +22,7 @@ public class AnalyticsService {
 
     private final ClickEventRepository clickEventRepository;
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    @Value("${app.base-url:http://localhost:8080/api/v1}")
+    @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
     @Transactional
@@ -76,7 +76,7 @@ public class AnalyticsService {
         return AnalyticsResponse.builder()
                 .shortUrl(fullShortUrl)
                 .shortCode(shortCode)
-                .totalClicks(totalClicks)
+                .clicks(totalClicks)
                 .uniqueVisitors(uniqueVisitors)
                 .countries(countries)
                 .recentClicks(details)

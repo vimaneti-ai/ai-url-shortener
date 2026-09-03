@@ -30,7 +30,6 @@ import java.time.LocalDateTime;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 @Tag(name = "URL Shortener", description = "Create, redirect, update, delete, and track click analytics for short links")
 public class urlController {
@@ -47,7 +46,7 @@ public class urlController {
             @ApiResponse(responseCode = "404", description = "Short code does not exist"),
             @ApiResponse(responseCode = "410", description = "Short code has expired")
     })
-    @GetMapping("/{shortUrl}")
+    @GetMapping({"/{shortUrl:[a-zA-Z0-9_-]{1,8}}", "/api/v1/{shortUrl:[a-zA-Z0-9_-]{1,8}}"})
     public ResponseEntity<Void> getLongURLByShortURL(@NotNull @PathVariable("shortUrl") String shortUrl,
             HttpServletRequest request) {
         String longUrl = urlService.resolveLongUrl(shortUrl);
@@ -76,14 +75,14 @@ public class urlController {
     }
 
     @Operation(summary = "Create a short URL",
-            description = "Shortening the same longUrl twice returns the existing active short code instead of minting a new one.")
+            description = "Shortening the same URL twice returns the existing active short code instead of minting a new one.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Short URL created",
                     content = @Content(schema = @Schema(implementation = URLResponse.class))),
             @ApiResponse(responseCode = "409", description = "Custom alias already in use"),
-            @ApiResponse(responseCode = "400", description = "Validation failed (e.g. longUrl missing http(s):// prefix)")
+            @ApiResponse(responseCode = "400", description = "Validation failed (e.g. url missing http(s):// prefix)")
     })
-    @PostMapping("/shorten")
+    @PostMapping("/api/v1/shorten")
     public ResponseEntity<URLResponse> createShortURL(@Valid @RequestBody URLRequest urlRequest) {
         URLResponse response = urlService.createShortUrl(urlRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -93,7 +92,7 @@ public class urlController {
             description = "Returns total clicks, unique visitors, a country breakdown, and the most recent clicks.")
     @ApiResponse(responseCode = "200", description = "Analytics for the short code",
             content = @Content(schema = @Schema(implementation = AnalyticsResponse.class)))
-    @GetMapping("/analytics/{code}")
+    @GetMapping("/api/v1/analytics/{code}")
     public AnalyticsResponse getAnalytics(@PathVariable String code) {
         return analyticsService.getStats(code);
     }
@@ -106,7 +105,7 @@ public class urlController {
             @ApiResponse(responseCode = "404", description = "Short code does not exist"),
             @ApiResponse(responseCode = "400", description = "Validation failed")
     })
-    @PutMapping("/{code}")
+    @PutMapping({"/api/v1/shorten/{code}", "/api/v1/{code}"})
     public ResponseEntity<URLResponse> updateShortURL(@PathVariable String code,
             @Valid @RequestBody URLUpdateRequest urlUpdateRequest) {
         URLResponse response = urlService.updateShortUrl(code, urlUpdateRequest);
@@ -119,7 +118,7 @@ public class urlController {
             @ApiResponse(responseCode = "204", description = "Deleted"),
             @ApiResponse(responseCode = "404", description = "Short code does not exist")
     })
-    @DeleteMapping("/{code}")
+    @DeleteMapping({"/api/v1/shorten/{code}", "/api/v1/{code}"})
     public ResponseEntity<Void> deleteShortURL(@PathVariable String code) {
         urlService.deleteShortUrl(code);
         return ResponseEntity.noContent().build();

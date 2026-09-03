@@ -29,7 +29,7 @@ public class UrlService {
     private final UrlRepository urlRepository;
     private final ClickEventRepository clickEventRepository;
     private final StringRedisTemplate redisTemplate;
-    @Value("${app.base-url:http://localhost:8080/api/v1}")
+    @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
     private String shortKey(String shortCode) {
@@ -42,7 +42,7 @@ public class UrlService {
 
     @Transactional
     public URLResponse createShortUrl(URLRequest request) {
-        String longUrl = request.getLongUrl();
+        String longUrl = request.getUrl();
         LocalDateTime expirationTime = request.getExpiresAt();
 
         Optional<URL> duplicate = findActiveDuplicate(longUrl);
@@ -124,7 +124,7 @@ public class UrlService {
         String oldLongUrl = url.getLongUrl();
         evictCache(shortCode, oldLongUrl);
 
-        url.setLongUrl(request.getLongUrl());
+        url.setLongUrl(request.getUrl());
         url.setExpiresAt(request.getExpiresAt());
         url.setActive(request.getExpiresAt() == null || LocalDateTime.now().isBefore(request.getExpiresAt()));
 

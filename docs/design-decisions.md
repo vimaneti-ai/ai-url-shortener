@@ -75,7 +75,7 @@ enforces the limit per-node — running more than one application instance would
 full fresh bucket on each instance it happens to hit. Acceptable for a single-node deployment;
 would need to move to a Redis-backed bucket before running more than one.
 
-## Hard delete, not soft delete, for `DELETE /api/v1/{code}`
+## Hard delete, not soft delete, for `DELETE /api/v1/shorten/{code}`
 
 Deleting a link removes the row and its click history entirely (`ClickEventRepository`
 `.deleteByShortUrl` + `UrlRepository.delete`), rather than just flipping `active = false`. This

@@ -12,7 +12,7 @@ public class URLRequest {
 
     @NotBlank(message = "Destination URL is required")
     @Pattern(regexp = "^(https?://).*$", message = "URL must start with http:// or https://")
-    private String longUrl;
+    private String url;
 
     @Pattern(regexp = "^[a-zA-Z0-9_-]*$", message = "Alias can only contain letters, numbers, dashes, and underscores")
     @Size(max = 8, message = "Custom alias cannot exceed 8 characters")
@@ -20,4 +20,3 @@ public class URLRequest {
 
     private LocalDateTime expiresAt;
 }
-

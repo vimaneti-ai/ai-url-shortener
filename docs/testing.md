@@ -43,13 +43,13 @@ Regenerated immediately before writing this document — not carried over from a
 development:
 
 ```
-Tests run: 50, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 53, Failures: 0, Errors: 0, Skipped: 0
 Line coverage: 89.6% (294 of 328 included lines)
 ```
 
 | Test class | Tests | Covers |
 | --- | :---: | --- |
-| `UrlControllerTest` | 12 | Every endpoint, Kafka publishing, graceful degradation, and exclusion of browser-prefetch requests from analytics |
+| `UrlControllerTest` | 15 | Every endpoint, Kafka publishing, graceful degradation, prefetch exclusion, and wire-contract field/path assertions |
 | `UrlServiceTest` | 15 | Base62 encoding, manual caching, Redis retry/DB fallback, duplicate detection, expiration/reactivation, update, delete |
 | `GeoIpServiceTest` | 10 | Private/loopback short-circuit, Redis cache hit, provider retry and fallback, both-providers-fail, malformed payload — all via a mocked `HttpClient` |
 | `ClickEventConsumerTest` | 4 | Persistence, null user-agent handling, poison-message protection, and propagation of transient persistence failures to Kafka retry handling |

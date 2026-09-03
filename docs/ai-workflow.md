@@ -45,11 +45,12 @@ This is the harder failure mode than greenfield: the existing `/api/urls` surfac
 Reading the existing controller and DTOs surfaced two decisions that weren't spelled out in the requirement, so they went to the user as explicit choices rather than silent defaults:
 
 1. `countries` breakdown requires resolving IP → country, which the app didn't do at all yet. Two options were presented: *stub it as `"Unknown"`* (matches the contract shape with zero new risk) vs. *call a real free GeoIP API* (actually functional, but a new external dependency). → chose the real API.
-2. The redirect endpoint (`GET /api/urls/{code}`) wasn't mentioned in the spec at all. Presented as: *leave it alone* vs. *move it to `/api/v1/{code}` too*, since leaving it split would mean the `shortUrl` field the API itself returns wouldn't actually resolve under the new convention. → chose to move it, for internal consistency.
+2. A later line-by-line re-check of the source assessment caught that redirect had been incorrectly normalized to `/api/v1/{code}` even though the required contract explicitly says `GET /{code}`. The same audit caught the create input (`url`), analytics count (`clicks`), and update/delete `/shorten/{code}` contract details.
 
 **Review & edits**
 - Renamed `expirationTime` → `expiresAt` across `URLRequest`, `URLResponse`, and the Angular models/service/component that send them
-- Re-mapped the controller: `POST /api/v1/shorten`, `GET /api/v1/analytics/{code}`, `GET /api/v1/{code}`
+- Re-mapped the canonical controller contract: `POST /api/v1/shorten`, `GET /{code}`, `GET /api/v1/analytics/{code}`, and `PUT`/`DELETE /api/v1/shorten/{code}`
+- Aligned the create/update input field to `url` and the analytics count field to `clicks`; retained the former endpoint paths only as compatibility aliases
 - Added `uniqueVisitors` (distinct IP count) and `countries` (`Map<String,Long>`) to `AnalyticsResponse`, computed in `AnalyticsService`
 - Built `GeoIpService` from scratch to back the `countries` field (see the ambiguous-requirement walkthrough below for how this later had to be redone)
 - Fixed a real naming inconsistency surfaced along the way: `AnalyticsResponse.shortUrl` used to hold just the bare code, while `URLResponse.shortUrl` held the full URL — same field name, two different meanings. Split into `shortUrl` (full URL) + `shortCode` (bare code) consistently on both DTOs.

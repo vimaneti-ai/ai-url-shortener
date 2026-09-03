@@ -45,13 +45,19 @@ heap tuning, and localhost-only internal port bindings; do not duplicate those s
 local-development base file. The live deployment is `https://short.vinodmaneti.com`: system nginx
 owns public ports 80/443, redirects HTTP to HTTPS, terminates the Certbot-managed certificate, and
 proxies to the frontend container at `127.0.0.1:4200`. The production `.env` therefore uses
-`FRONTEND_PORT=4200` and `APP_BASE_URL=https://short.vinodmaneti.com/api/v1`.
+`FRONTEND_PORT=4200` and `APP_BASE_URL=https://short.vinodmaneti.com`.
 
 The backend must be running for the frontend to do anything beyond render its static shell — it
 depends on the API for every action (shorten, analytics, redirect, update, delete).
 
 The nginx production image proxies only the exact `/actuator/health` endpoint. Other actuator
 paths return `404`; Spring exposes only `health`, with health details disabled.
+
+**CI/CD:** `.github/workflows/ci-deploy.yml` runs backend/frontend validation in parallel, then
+builds both Docker images. Pushes to `main` deploy through GitHub OIDC and AWS SSM; no SSH key is
+stored in GitHub. The deploy job deliberately hard-resets the EC2 checkout to `origin/main`, so
+never rely on tracked edits made directly on the server. The ignored production `.env` survives
+and is validated before deployment.
 
 There is no linter configured on either side (no Checkstyle/Spotless in `pom.xml`, no ESLint in
 `frontend/`).
@@ -116,14 +122,16 @@ not share state across multiple application instances — a real multi-instance 
 
 **The controller class is `urlController`** (lowercase first letter) — this is the actual, real
 class name in `com.example.URLShortener.controllers`, not a typo to "fix." It's the single
-controller for every endpoint (`POST /api/v1/shorten`, `GET /api/v1/{code}`,
-`PUT /api/v1/{code}`, `DELETE /api/v1/{code}`, `GET /api/v1/analytics/{code}`).
+controller for every endpoint (`POST /api/v1/shorten`, `GET /{code}`,
+`PUT /api/v1/shorten/{code}`, `DELETE /api/v1/shorten/{code}`,
+`GET /api/v1/analytics/{code}`). The former versioned redirect and shorter update/delete paths
+remain compatibility aliases, but are not the canonical assessment contract.
 
 **`app.base-url`** (`application.yaml`) is injected independently into both `UrlService` and
 `AnalyticsService` via `@Value` to build the full `shortUrl` field in their respective responses —
 if you change how that URL is constructed, update both.
 
-**Testing is pure-unit, not integration.** All 6 test classes mock their dependencies
+**Testing is pure-unit, not integration.** All 7 test classes mock their dependencies
 (`Mockito.mock(...)`) — there's no `@SpringBootTest` or `MockMvc` anywhere, so tests run in
 milliseconds with no Spring context, database, or broker required. JaCoCo enforces 80% minimum line
 coverage bundle-wide (`dto`, `models`, `config`, `exceptions` packages are excluded from the count)

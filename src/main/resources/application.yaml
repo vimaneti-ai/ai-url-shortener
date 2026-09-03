@@ -59,6 +59,6 @@ management:
         include: health
 
 app:
-  base-url: ${APP_BASE_URL:http://localhost:8080/api/v1}
+  base-url: ${APP_BASE_URL:http://localhost:8080}
   rate-limit:
     requests-per-minute: ${RATE_LIMIT:20}
