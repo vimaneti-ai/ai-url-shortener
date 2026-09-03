@@ -9,7 +9,7 @@ A full-stack URL shortener that creates custom, expiring links and provides clic
 ![Kafka](https://img.shields.io/badge/Kafka-KRaft-black?logo=apachekafka)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue?logo=postgresql)
 ![Redis](https://img.shields.io/badge/Redis-latest-red?logo=redis)
-![Coverage](https://img.shields.io/badge/Coverage-90.9%25-brightgreen.svg)
+![Coverage](https://img.shields.io/badge/Coverage-91.2%25-brightgreen.svg)
 ![Tests](https://img.shields.io/badge/Tests-53%20passed-brightgreen.svg)
 ![Live](https://img.shields.io/badge/Live-short.vinodmaneti.com-6f42c1)
 
@@ -43,12 +43,12 @@ reproduction steps.
 - **Rate Limiting** — Bucket4j-based, 20 requests/minute per IP (in-memory, per application node)
 - **Scheduled Cleanup** — cron job removes expired URLs from DB and cache
 - **Angular UI** — light-themed single-page app with a shorten form and an analytics/manage view (see [Web UI](#web-ui))
-- **Input Validation** — regex validation to prevent XSS and open redirects
+- **Input Validation** — URI parsing, an explicit HTTP/HTTPS scheme allowlist, alias constraints, and unsafe-character rejection
 - **Graceful Degradation** — redirects still work if Kafka is down
 - **Consistent API Errors** — centralized `@RestControllerAdvice` returns structured JSON errors
 - **Restricted Actuator** — public nginx exposes only basic `/actuator/health`; sensitive actuator endpoints are not exposed
 - **CI/CD** — GitHub Actions tests both apps, validates Docker images, and deploys `main` to EC2 through short-lived AWS OIDC credentials and SSM (no stored SSH or AWS access keys)
-- **Automated Testing** — 53 unit tests plus 13 integration tests backed by PostgreSQL and Redis Testcontainers; 90.9% line coverage with an 80% minimum enforced by JaCoCo
+- **Automated Testing** — 53 unit tests plus 21 integration tests backed by PostgreSQL and Redis Testcontainers, including a dedicated security suite; 91.2% line coverage with an 80% minimum enforced by JaCoCo
 
 ![Analytics Dashboard](docs/images/analytics.png)
 
@@ -365,10 +365,11 @@ Environment variable overrides: `KAFKA_SERVERS`, `APP_BASE_URL`, `RATE_LIMIT`.
 ./mvnw clean verify
 ```
 
-**66 backend tests**: 53 isolated unit tests plus 13 integration tests. The integration layer loads
+**74 backend tests**: 53 isolated unit tests plus 21 integration tests. The integration layer loads
 the complete Spring context, exercises the REST API through MockMvc, applies all Flyway migrations
-to disposable PostgreSQL 15 databases, and runs cache behavior against a real Redis 7 container.
-Current line coverage is **90.9%** — JaCoCo enforces an 80% minimum on every build.
+to disposable PostgreSQL 15 databases, runs cache behavior against a real Redis 7 container, and
+verifies SQL-injection handling, unsafe URLs, XSS payloads, expiration, and rate limiting. Current
+line coverage is **91.2%** — JaCoCo enforces an 80% minimum on every build.
 
 | Test Class                | Tests | What it covers |
 |---------------------------|:-----:|----------------|
@@ -382,6 +383,7 @@ Current line coverage is **90.9%** — JaCoCo enforces an 80% minimum on every b
 | `UrlApiIT`                   | 7  | REST create, validation/conflict errors, redirect/expiry, update/delete, analytics, and real PostgreSQL persistence |
 | `DatabaseMigrationIT`        | 2  | Flyway migration history, schema shape, unique short-code constraint, and click-event foreign key |
 | `RedisCacheIT`               | 4  | Real Redis miss/hit ratio, database-query avoidance, expiry-bounded TTL, and update/delete eviction |
+| `SecurityIT`                 | 8  | SQL-injection handling, invalid schemes/URLs, XSS payloads, expired links, and rate-limit enforcement |
 
 Integration tests use Docker through Testcontainers. Docker Desktop (or another compatible Docker
 engine) must be running before `./mvnw clean verify`; Maven Failsafe runs classes ending in `IT`
@@ -420,6 +422,9 @@ src/main/java/com/example/URLShortener/
 ├── repository/
 │   ├── UrlRepository.java               # URLs Spring Data repository
 │   └── ClickEventRepository.java        # Click events Spring Data repository
+├── validation/
+│   ├── ValidHttpUrl.java               # Bean Validation annotation for destination URLs
+│   └── HttpUrlValidator.java            # URI parser + HTTP/HTTPS allowlist
 └── services/
     ├── UrlService.java                   # Core URL business logic + manual Redis caching
     ├── AnalyticsService.java             # Analytics aggregation (totals, unique visitors, countries)
@@ -430,9 +435,8 @@ src/main/java/com/example/URLShortener/
 
 src/main/resources/
 ├── application.yaml                      # App configuration
-└── db/migration/                         # Historical SQL change log only — NOT executed by
-                                           # anything (no Flyway/Liquibase dependency); schema
-                                           # changes are applied via Hibernate ddl-auto: update
+└── db/migration/                         # Production history; applied to empty PostgreSQL
+                                           # Testcontainers by test-scoped Flyway verification
 
 frontend/                                 # Separate Angular 17 SPA — see "Web UI" above
 └── src/app/

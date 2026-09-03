@@ -49,6 +49,10 @@ those response fields do not change the assessment's required create-input field
 - **Error handling**: a global `@RestControllerAdvice` maps domain, validation, malformed-request,
   and unexpected failures to a consistent JSON response. Unexpected internal error details are
   logged server-side and replaced with a safe client message.
+- **Security validation**: destination URLs are parsed as URIs and restricted to absolute HTTP or
+  HTTPS URLs with a host and no user-info component. Dedicated PostgreSQL-backed integration tests
+  cover SQL-like input, unsafe schemes, malformed URLs, XSS payloads, expired links, and `429` rate
+  limiting.
 - **Unpredictable short codes**: not actually true today — Base62-encoded auto-increment IDs are
   sequential and enumerable (see `design-decisions.md`). Custom aliases are the only way to get an
   unpredictable code.

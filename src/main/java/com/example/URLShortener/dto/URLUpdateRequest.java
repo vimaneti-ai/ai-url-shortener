@@ -1,7 +1,8 @@
 package com.example.URLShortener.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import com.example.URLShortener.validation.ValidHttpUrl;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -10,7 +11,8 @@ import java.time.LocalDateTime;
 public class URLUpdateRequest {
 
     @NotBlank(message = "Destination URL is required")
-    @Pattern(regexp = "^(https?://).*$", message = "URL must start with http:// or https://")
+    @Size(max = 2048, message = "Destination URL cannot exceed 2048 characters")
+    @ValidHttpUrl
     private String url;
 
     private LocalDateTime expiresAt;
