@@ -10,7 +10,12 @@ RUN npm run build
 FROM nginx:alpine
 COPY --from=build /app/dist/url-shortener-ui/browser /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-RUN nginx -t
+# Compose DNS is unavailable while this image is being built. Use loopback only
+# for syntax validation, then restore the real backend service name in the image.
+RUN cp /etc/nginx/conf.d/default.conf /tmp/default.conf \
+    && sed -i 's/backend:8080/127.0.0.1:8080/g' /etc/nginx/conf.d/default.conf \
+    && nginx -t \
+    && mv /tmp/default.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
     CMD wget --quiet --tries=1 --spider http://127.0.0.1/ || exit 1

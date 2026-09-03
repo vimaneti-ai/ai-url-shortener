@@ -28,9 +28,11 @@ The checks confirmed HTTP-to-HTTPS redirection, a successful HTTPS frontend resp
 health response `{"status":"UP"}`, and successful simulated certificate renewal. These are deployment
 smoke checks, not a replacement for automated integration, browser, load, or failure-injection tests.
 
-The frontend Dockerfile also runs `nginx -t` while building the runtime image. This makes malformed
-proxy configuration fail in the CI Docker-build job rather than first appearing as a production
-`502 Bad Gateway` after deployment.
+The frontend Dockerfile also runs `nginx -t` while building the runtime image. Because Compose DNS
+does not exist during an isolated image build, the check temporarily substitutes loopback for the
+`backend` service name and restores the real configuration immediately afterward. This makes
+malformed proxy configuration fail in CI rather than first appearing as a production `502 Bad
+Gateway` after deployment.
 
 ## Run it
 
