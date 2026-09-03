@@ -22,7 +22,7 @@ graph TD
 
     Client -->|HTTPS short.vinodmaneti.com| HostNginx
     HostNginx -->|HTTP 127.0.0.1:4200| Frontend
-    Frontend -->|HTTP /api/v1/*| API
+    Frontend -->|HTTP /api/v1/* and /{shortCode}| API
     API <--> Cache
     API -->|create / update / delete / duplicate-check| DB
     API -->|redirect: always queries DB, cache or not, to check expiry| DB
@@ -53,9 +53,10 @@ system nginx is deliberately outside Compose so it can own ports 80/443 and let 
 
 ## Components
 
-1. **Spring Boot API** (`urlController`, single controller, `/api/v1/*`) — create, redirect,
-   update, delete, and analytics. Browser-prefetch/link-preview requests still redirect but do not
-   publish click events. All durable state lives in Postgres; transient cache data lives in Redis.
+1. **Spring Boot API** (`urlController`, single controller) — create, update, delete, and analytics
+   use `/api/v1/*`; redirects use the public bare `/{shortCode}` path required by the assessment.
+   Browser-prefetch/link-preview requests still redirect but do not publish click events. All
+   durable state lives in Postgres; transient cache data lives in Redis.
 2. **PostgreSQL** — source of truth for `urls` and `click_events` (schema below). ACID guarantees
    are what prevent two concurrent requests from creating duplicate custom aliases or duplicate
    active mappings for the same long URL.

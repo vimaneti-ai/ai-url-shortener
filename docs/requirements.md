@@ -2,6 +2,19 @@
 
 ## Functional requirements
 
+The canonical HTTP contract is:
+
+```text
+POST   /api/v1/shorten                 request field: url
+GET    /{shortCode}                    302 redirect
+GET    /api/v1/analytics/{shortCode}   response field: clicks
+PUT    /api/v1/shorten/{shortCode}
+DELETE /api/v1/shorten/{shortCode}
+```
+
+The create/update response may additionally return `shortCode` and `longUrl` for UI convenience;
+those response fields do not change the assessment's required create-input field, which is `url`.
+
 - **Shorten a URL** — given a long URL, generate a short code. Shortening the same long URL twice
   returns the existing active code rather than minting a duplicate.
 - **Custom aliases** — optionally choose the short code instead of auto-generating one
@@ -77,3 +90,7 @@ The implemented single-node deployment is live at
 AWS Elastic IP; EC2 system nginx redirects HTTP to HTTPS, terminates the Let's Encrypt certificate,
 and proxies to the localhost-bound frontend container. This satisfies the same-origin assumption
 above without publicly exposing the backend or infrastructure ports.
+
+Pushes to `main` pass backend, frontend, and Docker validation before deploying through GitHub
+OIDC and AWS Systems Manager. No EC2 SSH private key or long-lived AWS access key is stored in
+GitHub; see `DEPLOYMENT.md` for the exact workflow and IAM boundaries.

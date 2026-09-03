@@ -13,7 +13,7 @@ deliberately retained for development and do not describe the public deployment.
 
 - Java 21
 - Maven 3+ (or just use the bundled `./mvnw` / `mvnw.cmd` — no separate Maven install needed)
-- Node.js 18+ and npm
+- Node.js 20 and npm
 - Docker & Docker Compose
 
 ## Clone and install

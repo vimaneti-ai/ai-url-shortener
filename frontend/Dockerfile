@@ -10,6 +10,7 @@ RUN npm run build
 FROM nginx:alpine
 COPY --from=build /app/dist/url-shortener-ui/browser /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+RUN nginx -t
 EXPOSE 80
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
     CMD wget --quiet --tries=1 --spider http://127.0.0.1/ || exit 1

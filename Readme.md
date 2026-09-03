@@ -134,7 +134,7 @@ private Docker network.
 ### Prerequisites
 
 - Java 21
-- Node.js 18+ and npm (for the Angular frontend)
+- Node.js 20 and npm (for the Angular frontend)
 - Maven 3+
 - Docker & Docker Compose
 
@@ -365,12 +365,12 @@ Environment variable overrides: `KAFKA_SERVERS`, `APP_BASE_URL`, `RATE_LIMIT`.
 ./mvnw clean verify
 ```
 
-**50 tests**, all pure unit tests (mocked repositories/clients, no Spring context or MockMvc), with
+**53 tests**, all pure unit tests (mocked repositories/clients, no Spring context or MockMvc), with
 **89.6% line coverage** — JaCoCo enforces an 80% minimum on every build:
 
 | Test Class                | Tests | What it covers |
 |---------------------------|:-----:|----------------|
-| `UrlControllerTest`       | 12    | REST endpoints, Kafka publishing, graceful degradation, browser-prefetch exclusion |
+| `UrlControllerTest`       | 15    | REST endpoints, wire-contract fields/paths, Kafka publishing, graceful degradation, browser-prefetch exclusion |
 | `UrlServiceTest`          | 15    | Base62 encoding, caching and Redis retry/fallback, duplicate detection, expiration, update/delete |
 | `GeoIpServiceTest`        | 10    | Private/loopback short-circuit, Redis cache hit, provider retry/fallback, both-fail, malformed payload |
 | `ClickEventConsumerTest`  | 4     | Persistence, null handling, poison-message protection, transient failure propagation for retry |
@@ -395,7 +395,7 @@ src/main/java/com/example/URLShortener/
 │   ├── FilterConfig.java                # Registers RateLimitFilter on /api/* only
 │   └── OpenApiConfig.java               # springdoc OpenAPI bean (title/description/version)
 ├── controllers/
-│   └── urlController.java               # All REST endpoints (/api/v1) + Kafka producer
+│   └── urlController.java               # Versioned API + bare redirect endpoint + Kafka producer
 ├── exceptions/
 │   └── GlobalExceptionHandler.java       # Central exception-to-JSON response mapping
 ├── dto/

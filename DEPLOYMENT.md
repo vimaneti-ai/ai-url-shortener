@@ -186,7 +186,8 @@ curl https://short.vinodmaneti.com/actuator/health
 1. Backend tests and the JaCoCo gate run in parallel with frontend tests and the production build.
 2. Both Docker images and the merged production Compose configuration are validated after tests pass.
 3. A push to `main` assumes a repository-scoped AWS role through GitHub OIDC.
-4. AWS Systems Manager Run Command updates the EC2 checkout and recreates the Compose stack.
+4. AWS Systems Manager Run Command updates the EC2 checkout, recreates the Compose stack, and waits
+   for every container health check to pass.
 5. The workflow polls the public HTTPS health endpoint and fails unless it returns an `UP` status.
 
 The deploy job uses the GitHub `production` environment with these environment variables:

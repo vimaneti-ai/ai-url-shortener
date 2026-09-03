@@ -28,6 +28,10 @@ The checks confirmed HTTP-to-HTTPS redirection, a successful HTTPS frontend resp
 health response `{"status":"UP"}`, and successful simulated certificate renewal. These are deployment
 smoke checks, not a replacement for automated integration, browser, load, or failure-injection tests.
 
+The frontend Dockerfile also runs `nginx -t` while building the runtime image. This makes malformed
+proxy configuration fail in the CI Docker-build job rather than first appearing as a production
+`502 Bad Gateway` after deployment.
+
 ## Run it
 
 ```bash

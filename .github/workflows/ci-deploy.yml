@@ -117,7 +117,7 @@ jobs:
             COMPOSE_PARALLEL_LIMIT=1 docker compose \
               -f docker-compose.yml \
               -f docker-compose.prod.yml \
-              up -d --build --remove-orphans
+              up -d --build --remove-orphans --wait --wait-timeout 300
             docker compose \
               -f docker-compose.yml \
               -f docker-compose.prod.yml \
@@ -191,4 +191,6 @@ jobs:
           done
 
           echo "Deployment did not become healthy"
+          curl --include --show-error --max-time 10 \
+            https://short.vinodmaneti.com/actuator/health || true
           exit 1
