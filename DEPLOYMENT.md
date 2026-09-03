@@ -59,11 +59,11 @@ etc.) reachable from wherever the container runs.
 times with bounded exponential backoff. If Redis remains unavailable, URL operations fall back to
 PostgreSQL and GeoIP lookups continue without caching, increasing latency and external API usage.
 
-**Schema migrations run automatically and destructively-safely** via Hibernate
-`ddl-auto: update` — there is no separate migration step, and no Flyway/Liquibase dependency
-despite the `.sql` files under `src/main/resources/db/migration/` (kept as historical documentation
-only, not executed). `update` only adds/alters, it does not drop columns removed from an entity, so
-review the diff yourself before assuming a schema change is fully applied.
+**Production schema changes use Hibernate** `ddl-auto: update`; deployment has no separate Flyway
+step. Flyway is test-scoped and applies the V1–V4 scripts to a clean PostgreSQL Testcontainer in
+`DatabaseMigrationIT`, but it does not migrate the existing EC2 database. Hibernate `update` does
+not reliably remove obsolete schema objects, so review production schema changes rather than
+assuming the test migration history was executed during deployment.
 
 ## Deploying to Render.com
 

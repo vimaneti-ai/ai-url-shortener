@@ -49,6 +49,7 @@ reproduction steps.
 - **Restricted Actuator** — public nginx exposes only basic `/actuator/health`; sensitive actuator endpoints are not exposed
 - **CI/CD** — GitHub Actions tests both apps, validates Docker images, and deploys `main` to EC2 through short-lived AWS OIDC credentials and SSM (no stored SSH or AWS access keys)
 - **Automated Testing** — 53 unit tests plus 21 integration tests backed by PostgreSQL and Redis Testcontainers, including a dedicated security suite; 91.2% line coverage with an 80% minimum enforced by JaCoCo
+- **Reproducible Load Test** — k6 smoke and 1,000-concurrent-user profiles with endpoint-specific correctness, failure-rate, p95, and p99 thresholds
 
 ![Analytics Dashboard](docs/images/analytics.png)
 
@@ -81,7 +82,7 @@ private Docker network.
 │              │◀──302─│       ▼                  ▼                   │
 │              │       │  KafkaTemplate.send()  (fire-and-forget)     │
 └──────────────┘       └──────────┬───────────────────────────────────┘
-                                  │ ~1ms async
+                                  │ async publish
                                   ▼
                           ┌──────────────┐
                           │    Kafka     │
@@ -393,6 +394,17 @@ There is no `WebControllerTest` — there is no server-rendered web UI to test; 
 separate Angular app with its own Karma/Jasmine unit tests (`cd frontend && npm test`), not counted
 in the backend's JaCoCo report.
 
+### Performance test
+
+The repository includes a k6 workload that ramps to **1,000 concurrent virtual users**: 900 resolve
+short links and 100 read analytics. It does not follow redirects to destination sites, provides a
+safe 10-second smoke profile, and refuses to target the live domain at full load without an explicit
+override. Exact commands and evidence requirements are in
+[`performance/README.md`](performance/README.md). The first dated local 1,000-VU run completed
+204,952 iterations with 100% functional checks but failed the configured latency thresholds; see
+[`performance-report-2026-09-03.md`](performance/performance-report-2026-09-03.md). It is documented
+as a failed performance threshold result, not presented as proof of production capacity.
+
 ---
 
 ## Project Structure
@@ -443,4 +455,10 @@ frontend/                                 # Separate Angular 17 SPA — see "Web
     ├── app.component.{ts,html,css}       # The entire UI (shorten form + analytics view)
     ├── services/api.service.ts           # HTTP client for /api/v1
     └── models/models.ts                  # TypeScript request/response interfaces
+
+performance/
+├── url-shortener-load.js                 # k6 smoke + 1,000-concurrent-user workload
+├── README.md                             # Safe execution and interpretation guide
+├── REPORT_TEMPLATE.md                    # Evidence template for future runs
+└── performance-report-2026-09-03.md      # First full local run (latency thresholds failed)
 ```

@@ -6,7 +6,9 @@ This project was built iteratively with Claude, one requirement at a time. Every
 
 The "investigate" and "verify live" steps did the most work. Several of the walkthroughs below exist *because* something that looked done on paper turned out not to work when actually exercised — a stubbed dependency, a stale cache assumption, a status code that was never checked. AI-generated code that hasn't been run against the real system is a draft, not a result.
 
-Below are three real walkthroughs from this repo's history, picked to represent three different kinds of work: building something from nothing, safely reshaping something that already existed and was already tested, and handling a requirement that changed shape partway through.
+Below are real walkthroughs from this repo's history, picked to represent different kinds of work:
+building something from nothing, safely reshaping something already tested, handling an evolving
+requirement, and converting assessment gaps into reproducible evidence.
 
 ### 1. Greenfield — OpenAPI/Swagger documentation
 
@@ -96,6 +98,31 @@ Mocks proving the *fallback logic* works aren't the same as proving the *feature
 
 **Docs**
 Rewrote the README's country-resolution note to describe the actual dual-provider + caching mechanism, and — because this exact failure mode (an API that looks fine until you hit it with real traffic) is easy to reintroduce by accident — saved a persistent project memory explicitly recording that `ipapi.co` is a dead end here, so a future session doesn't spend time reinventing this investigation.
+
+---
+
+### 4. Turning assessment gaps into executable evidence
+
+A later assessment review identified four things that implementation claims alone could not prove:
+REST/database integration, real Redis hit-ratio behavior, hostile-input handling, and behavior at
+1,000 concurrent users. They were kept as four independent commits so each change had one reviewable
+purpose.
+
+- `UrlApiIT` and `DatabaseMigrationIT` load the complete Spring context, call the API through
+  MockMvc, persist to PostgreSQL 15 Testcontainers, and apply V1–V4 with test-scoped Flyway.
+- `RedisCacheIT` uses a real Redis 7 container, resets server statistics, proves a controlled miss
+  then hit, checks expiry-bounded TTLs, and uses Hibernate statistics to show the warm lookup avoids
+  another SQL query.
+- `SecurityIT` sends SQL-like values, malformed/unsafe URLs, XSS payloads, expired-link requests,
+  and excessive POST traffic through the real validation and persistence boundary.
+- `performance/url-shortener-load.js` defines a 900-redirect/100-analytics k6 workload that reaches
+  1,000 active virtual users, does not follow third-party redirects, records JSON results, and
+  refuses a full production run without an explicit override.
+
+The important reporting distinction is preserved: the first three suites have passing recorded
+results in `docs/testing.md`; the k6 smoke profile passed locally, while the subsequent 1,000-VU
+run preserved 100% correctness but failed its latency thresholds. The dated report retains both
+facts instead of converting “the test ran” into an unsupported “the performance target passed.”
 
 ---
 

@@ -46,9 +46,9 @@ A synchronous `INSERT` into `click_events` on every redirect (this codebase actu
 that version sitting unused as `AnalyticsService.recordClick()`, kept as a reference point) adds
 DB write latency to every single redirect, and couples click persistence to redirect completion.
 Publishing a `ClickEventMessage` to Kafka fire-and-forget and letting a separate
-`@KafkaListener` (`ClickEventConsumer`) persist it removes both penalties: the redirect only pays for a
-Kafka publish (~1ms, and even a publish *failure* is caught and logged without affecting the
-redirect), and the actual DB write — plus the `GeoIpService` network call — happens entirely off
+`@KafkaListener` (`ClickEventConsumer`) persist it removes both penalties: the redirect initiates an
+asynchronous Kafka publish (and an immediate publish failure is caught without affecting the
+redirect), while the actual DB write — plus the `GeoIpService` network call — happens entirely off
 that path. Cache misses still require a PostgreSQL read; warm-cache redirects do not. Producer
 delivery uses `acks=all`, idempotence, and three Kafka-native retries. Consumer
 processing failures are retried with bounded exponential backoff; invalid payloads are not retried,
@@ -85,14 +85,14 @@ pathway, not two different semantics for "gone because expired" vs. "gone becaus
 trade-off: there's no undo and no retained audit trail after a delete — `PRIVACY.md` documents this
 as the practical implication for anyone relying on click history.
 
-## No Flyway/Liquibase — `ddl-auto: update`
+## Hibernate in production, Flyway verification in tests
 
-Schema changes apply automatically via Hibernate rather than versioned migration scripts. Faster
-to iterate on for a project this size, at the cost of the usual `ddl-auto: update` risk: it adds
-and alters columns but never drops ones removed from an entity, so a genuine schema diff has to be
-verified by hand rather than trusted from the entity change alone. The `.sql` files under
-`db/migration/` are kept as human-readable history of what changed and when, even though nothing
-executes them.
+The deployed application applies schema changes through Hibernate `ddl-auto: update`, which keeps
+deployment simple but does not provide a production migration ledger and may leave obsolete schema
+objects behind. V1–V4 SQL files are more than passive notes now: test-scoped Flyway applies them to
+a fresh PostgreSQL Testcontainer, and `DatabaseMigrationIT` verifies migration history, uniqueness,
+and foreign-key behavior. They still do **not** run against the existing EC2 database during
+deployment, so entity changes and migration history must be maintained together.
 
 ---
 

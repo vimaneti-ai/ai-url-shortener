@@ -30,11 +30,11 @@ those response fields do not change the assessment's required create-input field
 
 ## Non-functional goals (and what's actually been verified about them)
 
-- **Low redirect latency**: the architecture is built around this — Redis-first lookups, and click
-  recording moved off the redirect path entirely via Kafka. **Not independently load-tested or
-  benchmarked in this deployment.** Any specific millisecond figures mentioned elsewhere in this
-  project's docs describe architectural reasoning ("removing a synchronous DB write should reduce
-  latency"), not a measured result — see `testing.md` for what has and hasn't been verified.
+- **Low redirect latency**: the architecture uses Redis-first lookups and moves click recording off
+  the redirect path via Kafka. A reproducible k6 profile now exercises 1,000 concurrent virtual
+  users with explicit correctness, failure-rate, p95, and p99 thresholds. The first documented
+  local run preserved 100% correctness but failed the latency thresholds, so no passing latency or
+  production-capacity claim is made — see `testing.md` and `../performance/README.md`.
 - **Availability under partial failure**: a **Kafka outage** degrades gracefully — publish
   failures are caught and logged, redirects are unaffected, and only click analytics pause. This
   behavior is implemented and code-reviewable, but has not been exercised via an actual broker
@@ -73,8 +73,9 @@ production traffic behind them and have been removed rather than carried forward
   a separate design discussion, not part of the current implementation.
 - **No self-domain / recursive-redirect protection.** A short URL can be pointed at another short
   URL on the same instance; nothing currently detects or blocks that.
-- **No migration tool.** Schema changes apply via Hibernate `ddl-auto: update`; see
-  `design-decisions.md` for the trade-off.
+- **No production migration runner.** EC2 schema changes still use Hibernate `ddl-auto: update`.
+  Test-scoped Flyway applies and verifies V1–V4 against disposable PostgreSQL instances but is not
+  included as an EC2 deployment step; see `design-decisions.md`.
 
 ## Assumptions
 
@@ -98,3 +99,22 @@ above without publicly exposing the backend or infrastructure ports.
 Pushes to `main` pass backend, frontend, and Docker validation before deploying through GitHub
 OIDC and AWS Systems Manager. No EC2 SSH private key or long-lived AWS access key is stored in
 GitHub; see `DEPLOYMENT.md` for the exact workflow and IAM boundaries.
+
+## Assessment verification snapshot
+
+The four previously missing engineering-test artifacts are now represented as separate changes:
+
+1. REST/database integration tests through Spring Boot, MockMvc, PostgreSQL Testcontainers, and
+   test-scoped Flyway.
+2. Real-Redis cache tests proving hit/miss statistics, hit ratio, TTL bounds, database-query
+   avoidance, and mutation eviction.
+3. A dedicated security integration suite for SQL-like input, unsafe URLs, XSS, expired links, and
+   rate limiting.
+4. A k6 workload that reaches 1,000 concurrent virtual users, with a smoke profile, thresholds,
+   production safety guard, machine-readable output, and report template.
+
+The 1,000-user artifact and first dated run are complete. That run produced zero functional
+failures but exceeded the configured latency limits, making performance tuning and an instrumented
+rerun the next step rather than changing the result to “pass.” The broader assessment items still
+pending outside these four tasks are an exposed metrics endpoint/dashboard (production
+currently exposes only restricted health) and a finalized 10-minute demo script.

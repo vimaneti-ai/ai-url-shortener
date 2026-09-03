@@ -31,6 +31,31 @@ health response `{"status":"UP"}`, and successful simulated certificate renewal.
 smoke checks, not a replacement for automated browser, load, or failure-injection tests. The
 automated API/database integration layer is described above.
 
+## Performance test
+
+[`performance/url-shortener-load.js`](../performance/url-shortener-load.js) is a reproducible k6
+test with a safe 10-second smoke profile and an 11-minute load profile. The load profile ramps to
+and holds 1,000 concurrent virtual users for five minutes: 900 exercise redirects and 100 query
+analytics. Redirect responses are not followed, keeping third-party destination latency and traffic
+out of the measurement.
+
+The pass/fail thresholds cover correctness, endpoint failure rates, and p95/p99 latency. A full run
+can include Kafka publication and click persistence (`RECORD_ANALYTICS=true`) or exercise the
+Redis-first resolution path without recording clicks (`RECORD_ANALYTICS=false`). See
+[`performance/README.md`](../performance/README.md) for exact commands, production safeguards, and
+the evidence template and the dated full-run report.
+
+The two-user local smoke profile was executed on 2026-09-03 with analytics recording disabled. It
+completed 22 iterations with 100% of checks passing, zero endpoint failures, redirect p95/p99 of
+15.99/16.42 ms, and analytics p95/p99 of 23.43/23.90 ms. These numbers validate the script and local
+request paths only; they are not a production capacity result.
+
+The local full profile was then run at 1,000 VUs for commit `0f391d9`. It completed 204,952
+iterations with 100% checks passing and zero functional failures. It **failed** the configured
+latency thresholds: redirect p95 was 3,049.83 ms and analytics p95 was 3,434.45 ms. The environment,
+p99 values, limitations, and interpretation are recorded in
+[`performance/performance-report-2026-09-03.md`](../performance/performance-report-2026-09-03.md).
+
 The frontend Dockerfile also runs `nginx -t` while building the runtime image. Because Compose DNS
 does not exist during an isolated image build, the check temporarily substitutes loopback for the
 `backend` service name and restores the real configuration immediately afterward. This makes
@@ -100,10 +125,9 @@ the new class, not lowering the threshold.
 
 ## What this suite intentionally does not cover
 
-- **No load/performance testing.** Redirect latency figures mentioned elsewhere in this project's
-  history (e.g. "~4ms vs ~18ms") are architectural reasoning about what Kafka removes from the hot
-  path, not measurements taken from a benchmark run against this deployment. Treat them as relative
-  reasoning, not a service-level number.
+- **No passing 1,000-user latency result.** A dated local run exists and preserved correctness, but
+  exceeded all four p95/p99 latency thresholds. It is not evidence that the current deployment
+  meets those latency objectives.
 - **No frontend test suite beyond a minimal Karma/Jasmine spec** (`app.component.spec.ts`, 4
   tests: component creation, heading render, URL-scheme validation, and explicit short-link opening). Not counted in
   the JaCoCo coverage figure above, and not comprehensive.

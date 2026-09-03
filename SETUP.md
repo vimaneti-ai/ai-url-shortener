@@ -16,6 +16,8 @@ deliberately retained for development and do not describe the public deployment.
 - Node.js 20 and npm
 - Docker & Docker Compose
 
+k6 is not a prerequisite: the performance guide uses the pinned `grafana/k6:0.54.0` Docker image.
+
 ## Clone and install
 
 ```bash
@@ -86,6 +88,19 @@ with `docker compose down`; add `-v` only when you intentionally want to delete 
 
 The base Compose file intentionally has no EC2 memory caps and exposes development ports normally.
 For EC2, use the tracked `docker-compose.prod.yml` override described in `DEPLOYMENT.md`.
+
+## Tests
+
+From the repository root:
+
+```bash
+./mvnw test          # 53 isolated unit tests
+./mvnw clean verify  # unit + 21 integration executions + JaCoCo gate
+```
+
+The full verification requires Docker because PostgreSQL and Redis integration tests use
+Testcontainers. Performance tests are separate from Maven; follow
+[`performance/README.md`](performance/README.md) for the smoke and 1,000-user profiles.
 
 ## Troubleshooting
 

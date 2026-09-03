@@ -27,7 +27,7 @@ graph TD
     API -->|create / update / delete / duplicate-check| DB
     API -->|redirect cache miss / mutations| DB
 
-    API -.->|fire-and-forget publish, ~1ms| Kafka
+    API -.->|asynchronous click publish| Kafka
     Kafka -.->|@KafkaListener| Consumer
     Consumer -->|resolve country| GeoIP
     GeoIP <--> Cache

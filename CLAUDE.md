@@ -19,7 +19,8 @@ you'll want to know about before touching that path), and
 ```bash
 ./mvnw spring-boot:run                          # run the API on :8080
 ./mvnw verify                                    # full test suite + JaCoCo coverage gate (80% min)
-./mvnw test                                      # tests only, no coverage check
+./mvnw test                                      # 53 unit tests only; no Testcontainers
+./mvnw failsafe:integration-test failsafe:verify # 21 integration-test executions
 ./mvnw test -Dtest=UrlServiceTest                # run one test class
 ./mvnw test -Dtest=UrlServiceTest#methodName     # run one test method
 ```
@@ -39,6 +40,10 @@ docker compose up --build -d  # DB, Redis, Kafka, backend :8080, frontend :4200
 docker compose ps
 docker compose down
 ```
+
+The k6 package under `performance/` provides a 10-second smoke profile and an 11-minute profile
+that reaches 1,000 concurrent virtual users. Follow `performance/README.md`; never aim the full
+profile at the public deployment without explicit approval.
 
 For EC2, layer `docker-compose.prod.yml` over the base file. It contains runtime memory limits,
 heap tuning, and localhost-only internal port bindings; do not duplicate those settings in the
@@ -110,10 +115,11 @@ the three `UrlService` domain exceptions to `409`/`404`/`410` and handles bean v
 malformed requests, constraint violations, and unexpected failures through the shared `ApiError`
 response. Keep controllers focused on success paths and add new HTTP mappings to the advice.
 
-**No Flyway.** `src/main/resources/db/migration/*.sql` exists but nothing executes it — there is no
-Flyway or Liquibase dependency. Schema changes are applied via Hibernate `ddl-auto: update`. If you
-change an entity, you don't need a migration file, but consider adding one to the folder anyway as
-human-readable history (matches the existing V1–V4 convention).
+**Production Hibernate, test-only Flyway.** Production schema changes are applied by Hibernate
+`ddl-auto: update`; the runtime image has no Flyway migration step. Flyway and its PostgreSQL module
+are test-scoped, however, and `DatabaseMigrationIT` applies V1–V4 from
+`src/main/resources/db/migration/` to a fresh PostgreSQL Testcontainer and verifies the resulting
+constraints. Keep entities and those migration scripts aligned.
 
 **Rate limiting is per-node, not distributed.** `RateLimitFilter` uses an in-memory
 `ConcurrentHashMap<String, Bucket>` keyed by client IP, only on `POST` requests to `/api/*`. It does
@@ -131,12 +137,12 @@ remain compatibility aliases, but are not the canonical assessment contract.
 `AnalyticsService` via `@Value` to build the full `shortUrl` field in their respective responses —
 if you change how that URL is constructed, update both.
 
-**Testing is pure-unit, not integration.** All 7 test classes mock their dependencies
-(`Mockito.mock(...)`) — there's no `@SpringBootTest` or `MockMvc` anywhere, so tests run in
-milliseconds with no Spring context, database, or broker required. JaCoCo enforces 80% minimum line
-coverage bundle-wide (`dto`, `models`, `config`, `exceptions` packages are excluded from the count)
-— a new service class with no tests will fail `./mvnw verify` on the coverage gate even if all
-tests pass, as happened twice this project's history (`GeoIpService`, both times it was rewritten).
+**Testing has unit and integration layers.** Surefire runs 53 isolated unit tests. Failsafe runs 21
+integration-test executions across `UrlApiIT`, `DatabaseMigrationIT`, `RedisCacheIT`, and
+`SecurityIT`, using the full Spring context, MockMvc, PostgreSQL 15 Testcontainers, and a real Redis
+7 container. Kafka remains mocked at this boundary. `./mvnw verify` runs both layers and enforces an
+80% JaCoCo line-coverage minimum (currently 91.2%); see `docs/testing.md` for the exact evidence and
+the separate k6 performance package.
 
 **Frontend is one component.** There's no routing module and no lazy-loaded feature modules — the
 entire UI (`app.component.ts/html/css`) is a single component that switches between "shorten" and
