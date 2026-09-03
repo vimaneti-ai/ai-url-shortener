@@ -88,7 +88,7 @@ public class UrlService {
         return toResponse(finalEntity);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = UrlExpiredException.class)
     public String resolveLongUrl(String shortCode) {
         // check cache first
         String cachedLong = readCache(shortKey(shortCode));

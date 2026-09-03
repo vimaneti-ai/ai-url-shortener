@@ -2,16 +2,16 @@
 
 ## Strategy
 
-All backend tests are pure unit tests — every dependency (`UrlRepository`, `ClickEventRepository`,
-`StringRedisTemplate`, `HttpClient`, `KafkaTemplate`) is mocked with Mockito. There is no
-`@SpringBootTest` and no `MockMvc` anywhere in this codebase: no Spring context loads, no database,
-Redis, or Kafka broker is required to run the suite, and the full run completes in a few seconds.
+The backend has two complementary test layers:
 
-This means these tests verify unit-level logic and contracts, not end-to-end integration behavior.
-Integration-level confidence in this project came from manually running the full stack (Docker
-Compose + backend + frontend) and exercising it with `curl`/Playwright during development — see
-`ai-workflow.md` for specific examples of bugs that were only caught that way, not by the unit
-suite.
+- **53 unit tests** isolate repositories and external clients with Mockito for fast feedback.
+- **9 integration tests** use `@SpringBootTest`, MockMvc, Flyway, and a disposable PostgreSQL 15
+  Testcontainer. They send real JSON through Spring MVC and verify persisted records, migrations,
+  constraints, redirects, validation errors, expiration, update/delete behavior, and analytics.
+
+Redis and Kafka remain mocked in this integration layer so these tests have one deliberate boundary:
+Spring MVC through PostgreSQL. Real-Redis cache tests and Kafka broker integration are separate work
+rather than being mislabeled as part of the database/API suite.
 
 ## Production smoke checks
 
@@ -26,7 +26,8 @@ sudo certbot renew --dry-run  # run on EC2
 
 The checks confirmed HTTP-to-HTTPS redirection, a successful HTTPS frontend response, the restricted
 health response `{"status":"UP"}`, and successful simulated certificate renewal. These are deployment
-smoke checks, not a replacement for automated integration, browser, load, or failure-injection tests.
+smoke checks, not a replacement for automated browser, load, or failure-injection tests. The
+automated API/database integration layer is described above.
 
 The frontend Dockerfile also runs `nginx -t` while building the runtime image. Because Compose DNS
 does not exist during an isolated image build, the check temporarily substitutes loopback for the
@@ -40,8 +41,9 @@ Gateway` after deployment.
 ./mvnw verify
 ```
 
-`verify` runs the tests and then the JaCoCo coverage gate; `./mvnw test` runs just the tests
-without the gate.
+Docker Desktop (or another compatible Docker engine) must be running. `verify` runs unit tests with
+Surefire, integration tests (`*IT`) with Failsafe, and then the JaCoCo coverage gate. `./mvnw test`
+runs only the 53 unit tests and does not start PostgreSQL.
 
 ## Current results
 
@@ -49,8 +51,10 @@ Regenerated immediately before writing this document — not carried over from a
 development:
 
 ```
-Tests run: 53, Failures: 0, Errors: 0, Skipped: 0
-Line coverage: 89.6% (294 of 328 included lines)
+Unit tests run: 53, Failures: 0, Errors: 0, Skipped: 0
+Integration tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+Total tests: 62
+Line coverage: 90.2% (296 of 328 included lines)
 ```
 
 | Test class | Tests | Covers |
@@ -62,6 +66,8 @@ Line coverage: 89.6% (294 of 328 included lines)
 | `AnalyticsServiceTest` | 3 | Click totals, unique-visitor counting, country-breakdown aggregation |
 | `CleanupServiceTest` | 2 | Scheduled purge of expired URLs and their click history |
 | `GlobalExceptionHandlerTest` | 4 | Domain status mappings and safe unexpected-error responses |
+| `UrlApiIT` | 7 | Full Spring MVC request handling and PostgreSQL persistence across create, redirect, validation, expiration, update/delete, and analytics |
+| `DatabaseMigrationIT` | 2 | All four Flyway migrations plus PostgreSQL uniqueness and foreign-key enforcement |
 
 ## Coverage gate
 

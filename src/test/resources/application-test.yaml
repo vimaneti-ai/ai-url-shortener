@@ -1,0 +1,17 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+  kafka:
+    listener:
+      auto-startup: false
+    admin:
+      fail-fast: false
+
+app:
+  base-url: http://localhost:8080
+  rate-limit:
+    requests-per-minute: 1000

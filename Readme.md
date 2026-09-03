@@ -9,7 +9,7 @@ A full-stack URL shortener that creates custom, expiring links and provides clic
 ![Kafka](https://img.shields.io/badge/Kafka-KRaft-black?logo=apachekafka)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue?logo=postgresql)
 ![Redis](https://img.shields.io/badge/Redis-latest-red?logo=redis)
-![Coverage](https://img.shields.io/badge/Coverage-89.6%25-brightgreen.svg)
+![Coverage](https://img.shields.io/badge/Coverage-90.2%25-brightgreen.svg)
 ![Tests](https://img.shields.io/badge/Tests-53%20passed-brightgreen.svg)
 ![Live](https://img.shields.io/badge/Live-short.vinodmaneti.com-6f42c1)
 
@@ -48,7 +48,7 @@ reproduction steps.
 - **Consistent API Errors** — centralized `@RestControllerAdvice` returns structured JSON errors
 - **Restricted Actuator** — public nginx exposes only basic `/actuator/health`; sensitive actuator endpoints are not exposed
 - **CI/CD** — GitHub Actions tests both apps, validates Docker images, and deploys `main` to EC2 through short-lived AWS OIDC credentials and SSM (no stored SSH or AWS access keys)
-- **Test Coverage** — 53 unit tests, 89.6% line coverage, 80% minimum enforced by JaCoCo
+- **Automated Testing** — 53 unit tests plus 9 PostgreSQL-backed integration tests; 90.2% line coverage with an 80% minimum enforced by JaCoCo
 
 ![Analytics Dashboard](docs/images/analytics.png)
 
@@ -365,8 +365,10 @@ Environment variable overrides: `KAFKA_SERVERS`, `APP_BASE_URL`, `RATE_LIMIT`.
 ./mvnw clean verify
 ```
 
-**53 tests**, all pure unit tests (mocked repositories/clients, no Spring context or MockMvc), with
-**89.6% line coverage** — JaCoCo enforces an 80% minimum on every build:
+**62 backend tests**: 53 isolated unit tests plus 9 integration tests that load the complete Spring
+context, exercise the REST API through MockMvc, apply all Flyway migrations to a disposable
+PostgreSQL 15 Testcontainer, and verify persisted data and database constraints. Current line
+coverage is **90.2%** — JaCoCo enforces an 80% minimum on every build.
 
 | Test Class                | Tests | What it covers |
 |---------------------------|:-----:|----------------|
@@ -377,6 +379,12 @@ Environment variable overrides: `KAFKA_SERVERS`, `APP_BASE_URL`, `RATE_LIMIT`.
 | `AnalyticsServiceTest`    | 3     | Click count, unique visitors, country breakdown, metadata mapping |
 | `CleanupServiceTest`      | 2     | Scheduled cleanup of expired URLs |
 | `GlobalExceptionHandlerTest` | 4  | Structured domain errors and safe unexpected-error responses |
+| `UrlApiIT`                   | 7  | REST create, validation/conflict errors, redirect/expiry, update/delete, analytics, and real PostgreSQL persistence |
+| `DatabaseMigrationIT`        | 2  | Flyway migration history, schema shape, unique short-code constraint, and click-event foreign key |
+
+Integration tests use Docker through Testcontainers. Docker Desktop (or another compatible Docker
+engine) must be running before `./mvnw clean verify`; Maven Failsafe runs classes ending in `IT`
+during the `integration-test` and `verify` phases.
 
 There is no `WebControllerTest` — there is no server-rendered web UI to test; the frontend is a
 separate Angular app with its own Karma/Jasmine unit tests (`cd frontend && npm test`), not counted

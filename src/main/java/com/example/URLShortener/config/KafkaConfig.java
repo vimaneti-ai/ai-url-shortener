@@ -33,6 +33,9 @@ public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
 
+    @Value("${spring.kafka.listener.auto-startup:true}")
+    private boolean listenerAutoStartup;
+
     // ── Topic ──────────────────────────────────────────────────────────────
 
     @Bean
@@ -83,6 +86,7 @@ public class KafkaConfig {
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         factory.setConcurrency(3);
+        factory.setAutoStartup(listenerAutoStartup);
         ExponentialBackOff backOff = new ExponentialBackOff(500L, 2.0);
         backOff.setMaxInterval(4000L);
         backOff.setMaxElapsedTime(7500L);
