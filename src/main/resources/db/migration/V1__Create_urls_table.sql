@@ -1,0 +1,7 @@
+CREATE TABLE urls (
+    id BIGSERIAL PRIMARY KEY,
+    long_url VARCHAR(2048) NOT NULL,
+    short_url VARCHAR(8) UNIQUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP
+);

@@ -1,0 +1,101 @@
+<nav>
+  <div class="nav-pill">
+    <button class="brand" (click)="view='shorten'"><span class="brand-mark">↗</span><span class="brand-name">URL Shortener</span></button>
+    <div class="nav-links">
+      <button [class.active]="view==='shorten'" (click)="view='shorten'">Shorten</button>
+      <button [class.active]="view==='analytics'" (click)="view='analytics'">Analytics</button>
+    </div>
+  </div>
+</nav>
+<main>
+  <div class="wrap page-header">
+    <span class="kicker">No signup · Free forever</span>
+    <h1>Shorten a URL</h1>
+    <p>Create a clean, shareable link in seconds.</p>
+  </div>
+  <div class="wrap layout">
+    <section class="card" *ngIf="view==='shorten'">
+      <div class="title"><div><h2>Create a short link</h2><p>Paste your destination and customize the link if you want.</p></div></div>
+      <form (ngSubmit)="shorten()">
+        <label for="url">Paste your long URL</label>
+        <input id="url" name="url" type="url" [(ngModel)]="longUrl" placeholder="https://example.com/a/very/long/path" required>
+        <div class="grid">
+          <div>
+            <label for="alias">Memorable ending <span>optional</span></label>
+            <input id="alias" name="alias" [(ngModel)]="alias" maxlength="8" placeholder="summer25">
+          </div>
+          <div>
+            <label for="expiry">Expiration <span>optional</span></label>
+            <input id="expiry" name="expiry" type="datetime-local" [(ngModel)]="expiry">
+          </div>
+        </div>
+        <p class="error" *ngIf="error">{{error}}</p>
+        <button class="primary" [disabled]="loading">
+          <span>{{loading?'Creating…':'Shorten URL'}}</span>
+          <svg *ngIf="!loading" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </button>
+      </form>
+      <div class="result" *ngIf="result">
+        <small><span class="dot"></span>LINK READY · ACTIVE</small>
+        <button type="button" class="result-link" (click)="openShortUrl()" [title]="'Open ' + result.shortUrl">
+          {{result.shortUrl}}
+        </button>
+        <p>{{result.longUrl}}</p>
+        <div>
+          <button (click)="copy()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            {{copied?'Copied':'Copy link'}}
+          </button>
+          <button (click)="showAnalytics(result.shortCode)">
+            View analytics
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+    <section class="card" *ngIf="view==='analytics'">
+      <div class="title">
+        <div><small>LINK PERFORMANCE</small><h2>See how your link is doing</h2><p>Enter a short code to see recent visits and total clicks.</p></div>
+        <i>⌁</i>
+      </div>
+      <form class="search" (ngSubmit)="loadAnalytics()"><input name="code" [(ngModel)]="code" placeholder="Short code or full short URL"><button class="primary">View report</button></form>
+      <div class="empty" *ngIf="!analytics"><b>{{analyticsError?'!':'⌁'}}</b><h3>{{analyticsError||'Analytics are ready when you are'}}</h3><p>{{analyticsError?'Try another short code.':'Enter a short code to view its click activity.'}}</p></div>
+      <div *ngIf="analytics">
+        <div class="manage">
+          <h3 class="recent">Manage this link</h3>
+          <div class="manage-row">
+            <input name="editLongUrl" type="url" [(ngModel)]="editLongUrl" placeholder="New destination URL">
+            <input name="editExpiry" type="datetime-local" [(ngModel)]="editExpiry">
+            <button class="ghost" (click)="updateLink()" [disabled]="editLoading">{{editLoading?'Saving…':'Save changes'}}</button>
+          </div>
+          <p class="error" *ngIf="editError">{{editError}}</p>
+          <p class="success" *ngIf="editSuccess">Link updated.</p>
+          <div class="manage-row">
+            <button class="danger" *ngIf="!confirmingDelete" (click)="confirmingDelete=true">Delete link</button>
+            <ng-container *ngIf="confirmingDelete">
+              <span class="confirm-text">Delete this link permanently?</span>
+              <button class="danger" (click)="deleteLink()" [disabled]="deleteLoading">{{deleteLoading?'Deleting…':'Yes, delete'}}</button>
+              <button class="ghost" (click)="confirmingDelete=false">Cancel</button>
+            </ng-container>
+          </div>
+          <p class="error" *ngIf="deleteError">{{deleteError}}</p>
+        </div>
+        <div class="metrics">
+          <article><small>TOTAL CLICKS</small><strong>{{analytics.totalClicks}}</strong></article>
+          <article><small>UNIQUE VISITORS</small><strong>{{analytics.uniqueVisitors}}</strong></article>
+          <article class="accent"><small>SHORT CODE</small><strong>/{{analytics.shortCode}}</strong></article>
+        </div>
+        <div class="countries" *ngIf="analytics.countries && (analytics.countries | keyvalue).length">
+          <h3 class="recent">Countries</h3>
+          <div class="country-row" *ngFor="let c of analytics.countries | keyvalue">
+            <span>{{c.key}}</span>
+            <strong>{{c.value}}</strong>
+          </div>
+        </div>
+        <h3 class="recent">Recent clicks</h3>
+        <div class="table" *ngIf="analytics.recentClicks.length;else none"><table><tr><th>Time</th><th>IP address</th><th>Country</th><th>User agent</th></tr><tr *ngFor="let c of analytics.recentClicks"><td>{{c.clickedAt}}</td><td>{{c.ipAddress||'Unknown'}}</td><td>{{c.country||'Unknown'}}</td><td>{{c.userAgent||'Unknown'}}</td></tr></table></div>
+        <ng-template #none><div class="empty"><h3>No records found</h3><p>Open the short link to generate its first click.</p></div></ng-template>
+      </div>
+    </section>
+  </div>
+</main>
