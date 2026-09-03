@@ -5,6 +5,10 @@ Dockerized infrastructure (the fast, recommended path for actual development), o
 containerized (slower to iterate on, closer to how it'd actually be deployed). See `DEPLOYMENT.md`
 for deploying this beyond your own machine.
 
+The current production deployment is available at
+[https://short.vinodmaneti.com](https://short.vinodmaneti.com). The localhost addresses below are
+deliberately retained for development and do not describe the public deployment.
+
 ## Prerequisites
 
 - Java 21

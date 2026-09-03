@@ -42,4 +42,4 @@ services:
   frontend:
     mem_limit: 100m
     ports: !override
-      - "0.0.0.0:${FRONTEND_PORT:-80}:80"
+      - "127.0.0.1:${FRONTEND_PORT:-4200}:80"

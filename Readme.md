@@ -11,6 +11,20 @@ A full-stack URL shortener that creates custom, expiring links and provides clic
 ![Redis](https://img.shields.io/badge/Redis-latest-red?logo=redis)
 ![Coverage](https://img.shields.io/badge/Coverage-89.6%25-brightgreen.svg)
 ![Tests](https://img.shields.io/badge/Tests-50%20passed-brightgreen.svg)
+![Live](https://img.shields.io/badge/Live-short.vinodmaneti.com-6f42c1)
+
+## Live application
+
+The application is deployed on AWS EC2 at **[https://short.vinodmaneti.com](https://short.vinodmaneti.com)**.
+HTTP requests are redirected to HTTPS, the domain points to an Elastic IP, and Let's Encrypt
+certificates renew automatically through Certbot. The public health check is available at
+[`/actuator/health`](https://short.vinodmaneti.com/actuator/health); other Actuator endpoints are
+not exposed.
+
+The deployment uses system nginx for TLS termination and forwards traffic to the localhost-only
+Angular/nginx container. PostgreSQL, Redis, Kafka, and the Spring Boot container are not directly
+exposed to the internet. See [`DEPLOYMENT.md`](DEPLOYMENT.md) for the deployed topology and
+reproduction steps.
 
 ---
 
@@ -51,6 +65,10 @@ This project was built iteratively with Claude, one requirement at a time — ev
 > Full detail (system diagram, component roles, schema, codebase layout) lives in
 > [`docs/architecture.md`](docs/architecture.md); the reasoning behind specific choices is in
 > [`docs/design-decisions.md`](docs/design-decisions.md). The summary below is illustrative.
+
+In production, the browser first reaches system nginx over HTTPS; it forwards to the Angular
+container, which proxies `/api/*` and the restricted health endpoint to Spring Boot over the
+private Docker network.
 
 ```
 ┌──────────────┐       ┌──────────────────────────────────────────────┐

@@ -3,6 +3,10 @@
 This covers running both apps outside local development, and honestly documents what each existing
 config file actually does versus what it looks like it does at a glance.
 
+> **Live deployment:** [https://short.vinodmaneti.com](https://short.vinodmaneti.com) on a
+> single AWS EC2 instance. DNS points to Elastic IP `16.59.235.190`; system nginx terminates TLS
+> with a Let's Encrypt certificate managed by Certbot.
+
 ## What's actually containerized
 
 - **`Dockerfile`** (repo root) — multi-stage build (Maven build stage → `eclipse-temurin:21-jre-jammy`
@@ -91,9 +95,10 @@ docker compose up --build -d
 docker compose ps
 ```
 
-On a single AWS host, expose the frontend through the load balancer/reverse proxy and avoid
-publicly exposing the Postgres, Redis, Kafka, and backend ports. The checked-in port mappings are
-for local verification and should be overridden or removed for an internet-facing deployment.
+On the current AWS host, system nginx is the public reverse proxy. It terminates TLS for
+`https://short.vinodmaneti.com`, redirects HTTP to HTTPS, and forwards requests to the containerized
+frontend on `127.0.0.1:4200`. Do not publicly expose the frontend container, Postgres, Redis, Kafka,
+or backend ports.
 
 The frontend proxies only the exact `/actuator/health` path and returns `404` for other
 `/actuator/*` paths. Spring Boot exposes only `health`, with health details and component
@@ -103,8 +108,12 @@ load balancer, because nginx is the intended public boundary.
 ## Running on a memory-constrained EC2 instance
 
 Keep local-development defaults in `docker-compose.yml`; do not copy production tuning into the
-base file. On EC2, set `FRONTEND_PORT=80`, a strong `POSTGRES_PASSWORD`, and the public
-`APP_BASE_URL` in the ignored `.env`, then layer the tracked production override on top:
+base file. On EC2, set `FRONTEND_PORT=4200`, a strong `POSTGRES_PASSWORD`, and the following public
+URL in the ignored `.env`, then layer the tracked production override on top:
+
+```env
+APP_BASE_URL=https://short.vinodmaneti.com/api/v1
+```
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
@@ -112,8 +121,63 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 ```
 
 The override caps the five services at approximately 1.7 GB total and binds Postgres, Redis,
-Kafka, and the backend to `127.0.0.1`. Only frontend nginx binds publicly. The EC2 security group
-should independently allow only `22` from an administrator IP and `80`/`443` publicly.
+Kafka, the backend, and the containerized frontend to `127.0.0.1`. System nginx is the only public
+application listener. The EC2 security group should independently allow only `22` from an
+administrator IP and `80`/`443` publicly.
+
+The DNS `A` record for `short.vinodmaneti.com` points to Elastic IP `16.59.235.190`. Certbot manages
+the Let's Encrypt certificate and nginx redirect; validate renewal after installation with:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+### EC2 nginx and HTTPS
+
+Install nginx on the host and forward public traffic to the localhost-only frontend container:
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+    server_name short.vinodmaneti.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:4200;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Save that server block as `/etc/nginx/sites-available/url-shortener`, enable it in
+`/etc/nginx/sites-enabled/`, and remove the enabled default site. Then validate and reload:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+After DNS resolves to the Elastic IP and ports 80/443 are allowed by the EC2 security group,
+install Certbot and provision the certificate:
+
+```bash
+sudo snap install core
+sudo snap refresh core
+sudo snap install --classic certbot
+sudo ln -sf /snap/bin/certbot /usr/local/bin/certbot
+sudo certbot --nginx -d short.vinodmaneti.com
+```
+
+Confirm HTTP redirects and the proxied health endpoint remains available over HTTPS:
+
+```bash
+curl -I http://short.vinodmaneti.com
+curl https://short.vinodmaneti.com/actuator/health
+```
 
 To inspect the fully merged configuration before starting it:
 

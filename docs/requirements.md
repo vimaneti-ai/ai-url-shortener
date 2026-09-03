@@ -69,3 +69,11 @@ production traffic behind them and have been removed rather than carried forward
 - The frontend and backend are deployed such that the frontend's relative `/api/*` calls actually
   reach the backend (same origin, or a reverse proxy) — see `DEPLOYMENT.md` for what's required to
   make that true, since it isn't automatic.
+
+## Current deployment
+
+The implemented single-node deployment is live at
+[https://short.vinodmaneti.com](https://short.vinodmaneti.com). IONOS DNS maps the subdomain to an
+AWS Elastic IP; EC2 system nginx redirects HTTP to HTTPS, terminates the Let's Encrypt certificate,
+and proxies to the localhost-bound frontend container. This satisfies the same-origin assumption
+above without publicly exposing the backend or infrastructure ports.

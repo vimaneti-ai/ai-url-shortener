@@ -5,6 +5,10 @@ parties, based on the current implementation — not a generic privacy-policy te
 legal advice. If you deploy this publicly, have it reviewed against whatever regulations apply to
 you (GDPR, CCPA, etc.) before relying on it.
 
+The current instance is publicly accessible at
+[https://short.vinodmaneti.com](https://short.vinodmaneti.com). This document is a technical data
+inventory for that deployment, not a substitute for a user-facing privacy policy or legal review.
+
 ## What's collected
 
 **When you shorten a URL**: the destination URL itself, an optional custom alias, and an optional
@@ -61,5 +65,6 @@ authentication and scoping links to accounts, which does not currently exist.
 
 Anyone able to call `GET /api/v1/analytics/{code}` for a given short code can see every click's IP
 address, User-Agent string, and resolved country for that code — there is no access control on
-this endpoint. If you deploy this publicly, treat the analytics endpoint as exposing visitor IP
-addresses to anyone who knows or guesses a short code, not just the link's creator.
+this endpoint. Because the application is publicly deployed, treat the analytics endpoint as
+exposing visitor IP addresses to anyone who knows or guesses a short code, not just the link's
+creator.

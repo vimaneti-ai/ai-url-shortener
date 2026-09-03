@@ -42,7 +42,10 @@ docker compose down
 
 For EC2, layer `docker-compose.prod.yml` over the base file. It contains runtime memory limits,
 heap tuning, and localhost-only internal port bindings; do not duplicate those settings in the
-local-development base file.
+local-development base file. The live deployment is `https://short.vinodmaneti.com`: system nginx
+owns public ports 80/443, redirects HTTP to HTTPS, terminates the Certbot-managed certificate, and
+proxies to the frontend container at `127.0.0.1:4200`. The production `.env` therefore uses
+`FRONTEND_PORT=4200` and `APP_BASE_URL=https://short.vinodmaneti.com/api/v1`.
 
 The backend must be running for the frontend to do anything beyond render its static shell — it
 depends on the API for every action (shorten, analytics, redirect, update, delete).

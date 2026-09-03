@@ -8,6 +8,11 @@ Talks to the Spring Boot backend on `http://localhost:8080` via a dev-server pro
 (`proxy.conf.json`) for `/api/*` and `/actuator/*` — the backend must be running for this app to
 work beyond its static shell.
 
+The production build is live at
+[https://short.vinodmaneti.com](https://short.vinodmaneti.com). On EC2, system nginx terminates
+HTTPS and proxies to this app's container on `127.0.0.1:4200`; this app's container nginx then
+proxies relative API requests to the Spring Boot service over the Docker network.
+
 ## Development server
 
 Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.

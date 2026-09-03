@@ -13,6 +13,21 @@ Compose + backend + frontend) and exercising it with `curl`/Playwright during de
 `ai-workflow.md` for specific examples of bugs that were only caught that way, not by the unit
 suite.
 
+## Production smoke checks
+
+The deployed boundary was manually verified on 2026-09-03:
+
+```bash
+curl -I http://short.vinodmaneti.com
+curl -I https://short.vinodmaneti.com
+curl https://short.vinodmaneti.com/actuator/health
+sudo certbot renew --dry-run  # run on EC2
+```
+
+The checks confirmed HTTP-to-HTTPS redirection, a successful HTTPS frontend response, the restricted
+health response `{"status":"UP"}`, and successful simulated certificate renewal. These are deployment
+smoke checks, not a replacement for automated integration, browser, load, or failure-injection tests.
+
 ## Run it
 
 ```bash

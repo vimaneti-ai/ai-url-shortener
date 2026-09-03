@@ -10,6 +10,8 @@ choices were made (Base62 vs. hashing, manual Redis caching, Kafka decoupling, e
 ```mermaid
 graph TD
     Client((Browser / Angular SPA))
+    HostNginx[EC2 system nginx<br/>TLS termination]
+    Frontend[Container nginx<br/>Angular SPA]
     API[Spring Boot API — single node]
     Cache[(Redis)]
     DB[(PostgreSQL)]
@@ -18,7 +20,9 @@ graph TD
     GeoIP[GeoIpService]
     CronJob[CleanupService — hourly @Scheduled]
 
-    Client -->|HTTP /api/v1/*| API
+    Client -->|HTTPS short.vinodmaneti.com| HostNginx
+    HostNginx -->|HTTP 127.0.0.1:4200| Frontend
+    Frontend -->|HTTP /api/v1/*| API
     API <--> Cache
     API -->|create / update / delete / duplicate-check| DB
     API -->|redirect: always queries DB, cache or not, to check expiry| DB
@@ -34,16 +38,18 @@ graph TD
 ```
 
 This is genuinely everything that runs: one Spring Boot process, one Postgres instance, one Redis
-instance, one Kafka broker (KRaft, no ZooKeeper), and a separate Angular SPA that talks to the API
-over HTTP. The root Compose file builds and runs all five services; frontend nginx proxies API and
-health requests to the backend over the shared Docker network. There is no load balancer, CDN,
+instance, one Kafka broker (KRaft, no ZooKeeper), and a separate Angular SPA. On EC2, system nginx
+terminates HTTPS for `short.vinodmaneti.com` and forwards to the containerized frontend on
+`127.0.0.1:4200`; frontend nginx then proxies API and health requests to the backend over the shared
+Docker network. The root Compose file builds and runs all five services. There is no load balancer, CDN,
 read replica, or Redis cluster in this deployment — if
 you're looking for how this would need to change to run at a much larger scale, that discussion
 lives in `design-decisions.md`, clearly separated from what's described here.
 
 `docker-compose.prod.yml` is a deployment overlay rather than a second stack definition. It adds
-EC2 memory constraints and host-binding hardening while inheriting service topology, health checks,
-networks, volumes, builds, and environment wiring from `docker-compose.yml`.
+EC2 memory constraints and localhost-only host bindings while inheriting service topology, health
+checks, networks, volumes, builds, and environment wiring from `docker-compose.yml`. The host's
+system nginx is deliberately outside Compose so it can own ports 80/443 and let Certbot manage TLS.
 
 ## Components
 
