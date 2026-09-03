@@ -9,7 +9,7 @@ A full-stack URL shortener that creates custom, expiring links and provides clic
 ![Kafka](https://img.shields.io/badge/Kafka-KRaft-black?logo=apachekafka)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue?logo=postgresql)
 ![Redis](https://img.shields.io/badge/Redis-latest-red?logo=redis)
-![Coverage](https://img.shields.io/badge/Coverage-90.2%25-brightgreen.svg)
+![Coverage](https://img.shields.io/badge/Coverage-90.9%25-brightgreen.svg)
 ![Tests](https://img.shields.io/badge/Tests-53%20passed-brightgreen.svg)
 ![Live](https://img.shields.io/badge/Live-short.vinodmaneti.com-6f42c1)
 
@@ -48,7 +48,7 @@ reproduction steps.
 - **Consistent API Errors** — centralized `@RestControllerAdvice` returns structured JSON errors
 - **Restricted Actuator** — public nginx exposes only basic `/actuator/health`; sensitive actuator endpoints are not exposed
 - **CI/CD** — GitHub Actions tests both apps, validates Docker images, and deploys `main` to EC2 through short-lived AWS OIDC credentials and SSM (no stored SSH or AWS access keys)
-- **Automated Testing** — 53 unit tests plus 9 PostgreSQL-backed integration tests; 90.2% line coverage with an 80% minimum enforced by JaCoCo
+- **Automated Testing** — 53 unit tests plus 13 integration tests backed by PostgreSQL and Redis Testcontainers; 90.9% line coverage with an 80% minimum enforced by JaCoCo
 
 ![Analytics Dashboard](docs/images/analytics.png)
 
@@ -328,7 +328,7 @@ GET /api/v1/analytics/{shortCode}
 |---|---|---|
 | Redirect latency | Waits on a synchronous click-event INSERT it doesn't need to | That write is off the response path entirely (not independently benchmarked) |
 | Click-write volume under load | Redirects slow down as write volume grows | Redirects unaffected — click writes happen in a separate consumer, at its own pace |
-| Postgres goes down | Redirects fail (`resolveLongUrl` queries Postgres for expiry on every request, cache hit or miss, so this is true either way) | **Also fails** — Kafka only decouples the click-*write*, not the redirect's own read-path dependency on Postgres. Don't read this as "Kafka makes the system resilient to a DB outage." |
+| Postgres goes down | Warm-cache redirects continue until their bounded Redis TTL expires; cache misses fail | Kafka only decouples the click-*write*. Redis provides a temporary read path for cached links, not durable database failover. |
 | Postgres goes down *during consumption* | N/A | The Kafka listener retries transient persistence failures with exponential backoff. After retries are exhausted the default recoverer logs and skips the record; no dead-letter topic is configured. |
 
 **In short**: Kafka buys decoupling of click-recording from the redirect response, consumer-side backpressure tolerance, and bounded retries for transient failures. It does not make the redirect read path independent of Postgres, and permanently failed records are not retained in a dead-letter topic.
@@ -365,10 +365,10 @@ Environment variable overrides: `KAFKA_SERVERS`, `APP_BASE_URL`, `RATE_LIMIT`.
 ./mvnw clean verify
 ```
 
-**62 backend tests**: 53 isolated unit tests plus 9 integration tests that load the complete Spring
-context, exercise the REST API through MockMvc, apply all Flyway migrations to a disposable
-PostgreSQL 15 Testcontainer, and verify persisted data and database constraints. Current line
-coverage is **90.2%** — JaCoCo enforces an 80% minimum on every build.
+**66 backend tests**: 53 isolated unit tests plus 13 integration tests. The integration layer loads
+the complete Spring context, exercises the REST API through MockMvc, applies all Flyway migrations
+to disposable PostgreSQL 15 databases, and runs cache behavior against a real Redis 7 container.
+Current line coverage is **90.9%** — JaCoCo enforces an 80% minimum on every build.
 
 | Test Class                | Tests | What it covers |
 |---------------------------|:-----:|----------------|
@@ -381,6 +381,7 @@ coverage is **90.2%** — JaCoCo enforces an 80% minimum on every build.
 | `GlobalExceptionHandlerTest` | 4  | Structured domain errors and safe unexpected-error responses |
 | `UrlApiIT`                   | 7  | REST create, validation/conflict errors, redirect/expiry, update/delete, analytics, and real PostgreSQL persistence |
 | `DatabaseMigrationIT`        | 2  | Flyway migration history, schema shape, unique short-code constraint, and click-event foreign key |
+| `RedisCacheIT`               | 4  | Real Redis miss/hit ratio, database-query avoidance, expiry-bounded TTL, and update/delete eviction |
 
 Integration tests use Docker through Testcontainers. Docker Desktop (or another compatible Docker
 engine) must be running before `./mvnw clean verify`; Maven Failsafe runs classes ending in `IT`

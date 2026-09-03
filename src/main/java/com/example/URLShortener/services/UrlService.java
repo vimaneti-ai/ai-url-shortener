@@ -93,13 +93,8 @@ public class UrlService {
         // check cache first
         String cachedLong = readCache(shortKey(shortCode));
         if (cachedLong != null) {
-            // even on cache hit, verify the URL has not expired
-            Optional<URL> optionalUrl = urlRepository.findByShortUrlAndActiveTrue(shortCode);
-            if (optionalUrl.isPresent() && isExpired(optionalUrl.get())) {
-                deactivate(optionalUrl.get());
-                evictCache(shortCode, cachedLong);
-                throw new UrlExpiredException("Short URL has expired: " + shortCode);
-            }
+            // Cache entries never outlive the URL expiry, so a hit can safely
+            // serve the redirect without a database query.
             return cachedLong;
         }
 
@@ -170,8 +165,20 @@ public class UrlService {
         }
         String code = url.getShortUrl();
         String longUrl = url.getLongUrl();
-        writeCache(shortKey(code), longUrl);
-        writeCache(longKey(longUrl), code);
+        Duration ttl = cacheTtl(url);
+        if (ttl.isZero() || ttl.isNegative()) {
+            return;
+        }
+        writeCache(shortKey(code), longUrl, ttl);
+        writeCache(longKey(longUrl), code, ttl);
+    }
+
+    private Duration cacheTtl(URL url) {
+        if (url.getExpiresAt() == null) {
+            return CACHE_TTL;
+        }
+        Duration remaining = Duration.between(LocalDateTime.now(), url.getExpiresAt());
+        return remaining.compareTo(CACHE_TTL) < 0 ? remaining : CACHE_TTL;
     }
 
     private boolean isExpired(URL url) {
@@ -195,9 +202,9 @@ public class UrlService {
         return withCacheRetry("read", key, () -> redisTemplate.opsForValue().get(key), null);
     }
 
-    private void writeCache(String key, String value) {
+    private void writeCache(String key, String value, Duration ttl) {
         withCacheRetry("write", key, () -> {
-            redisTemplate.opsForValue().set(key, value, CACHE_TTL);
+            redisTemplate.opsForValue().set(key, value, ttl);
             return null;
         }, null);
     }

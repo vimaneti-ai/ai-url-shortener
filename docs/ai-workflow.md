@@ -104,9 +104,10 @@ Rewrote the README's country-resolution note to describe the actual dual-provide
 An earlier version of `docs/` (a `High-Level-Design.md`/`Low-Level-Design.md`/`Interview-QnA.md`
 split) accumulated exactly the kind of drift this whole process is meant to catch: unsupported
 production claims (99.99% uptime, sub-10ms latency, quoted with no benchmark behind them), a
-`Redis cache hits never touch the database` claim that was checked against the actual
-`UrlService.resolveLongUrl` code and found false (it queries Postgres on every redirect, cache hit
-or not, to check expiry), a fabricated self-domain-redirect-blocking claim with no corresponding
+`Redis cache hits never touch the database` claim that was checked against the implementation at
+that time and found false. The cache path was subsequently redesigned with expiry-bounded TTLs and
+is now proved by `RedisCacheIT` to avoid a second database query, rather than merely asserted. A
+fabricated self-domain-redirect-blocking claim with no corresponding
 code anywhere, and two screenshots left over from a UI that had already been deleted. All of it was
 caught the same way as everything else here — by checking specific claims against the actual
 code and running system, not by re-reading the prose more carefully — and this doc set

@@ -39,9 +39,9 @@ those response fields do not change the assessment's required create-input field
   failures are caught and logged, redirects are unaffected, and only click analytics pause. This
   behavior is implemented and code-reviewable, but has not been exercised via an actual broker
   outage (a chaos-style test). Two things Kafka does **not** protect against, confirmed by reading
-  the actual exception handling rather than assumed: a **Postgres outage** — `resolveLongUrl`
-  queries Postgres on every redirect (cache hit or miss) to check expiry, with no catch block for
-  a DB connectivity failure, so redirects fail outright if Postgres is unreachable — and a
+  the actual exception handling rather than assumed: a **Postgres outage** — warm-cache redirects
+  continue only until their expiry-bounded Redis TTL elapses, while cache misses fail because
+  there is no durable database failover — and a
   **Postgres outage specifically during consumption** — Kafka retries transient listener failures
   with exponential backoff, but permanently failed records are skipped after retry exhaustion
   because no dead-letter topic is configured. A **Redis outage** is retried three times with bounded

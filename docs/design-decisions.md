@@ -44,12 +44,13 @@ re-testing rather than trusting that the logic was correct — see `ai-workflow.
 
 A synchronous `INSERT` into `click_events` on every redirect (this codebase actually still has
 that version sitting unused as `AnalyticsService.recordClick()`, kept as a reference point) adds
-DB write latency to every single redirect, and couples redirect availability to database
-availability. Publishing a `ClickEventMessage` to Kafka fire-and-forget and letting a separate
-`@KafkaListener` (`ClickEventConsumer`) persist it removes both: the redirect only pays for a
+DB write latency to every single redirect, and couples click persistence to redirect completion.
+Publishing a `ClickEventMessage` to Kafka fire-and-forget and letting a separate
+`@KafkaListener` (`ClickEventConsumer`) persist it removes both penalties: the redirect only pays for a
 Kafka publish (~1ms, and even a publish *failure* is caught and logged without affecting the
 redirect), and the actual DB write — plus the `GeoIpService` network call — happens entirely off
-that path. Producer delivery uses `acks=all`, idempotence, and three Kafka-native retries. Consumer
+that path. Cache misses still require a PostgreSQL read; warm-cache redirects do not. Producer
+delivery uses `acks=all`, idempotence, and three Kafka-native retries. Consumer
 processing failures are retried with bounded exponential backoff; invalid payloads are not retried,
 and exhausted records are logged and skipped because this project does not currently configure a
 dead-letter topic.

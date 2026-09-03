@@ -25,7 +25,7 @@ graph TD
     Frontend -->|HTTP /api/v1/* and /{shortCode}| API
     API <--> Cache
     API -->|create / update / delete / duplicate-check| DB
-    API -->|redirect: always queries DB, cache or not, to check expiry| DB
+    API -->|redirect cache miss / mutations| DB
 
     API -.->|fire-and-forget publish, ~1ms| Kafka
     Kafka -.->|@KafkaListener| Consumer
@@ -95,11 +95,11 @@ system nginx is deliberately outside Compose so it can own ports 80/443 and let 
    URLs, proxied to the backend by the dev server locally (see `SETUP.md`/`DEPLOYMENT.md` for what
    that means in production).
 
-**Redirects always query Postgres, cache hit or not.** This is worth stating plainly because it's
-easy to assume otherwise: `UrlService.resolveLongUrl` checks Redis first, but even on a cache hit
-it still queries `UrlRepository.findByShortUrlAndActiveTrue` to verify the link hasn't expired
-since it was cached. Redis avoids re-fetching the long URL and reduces load, but it does not remove
-Postgres from the redirect path entirely.
+**Warm-cache redirects do not query Postgres.** Every URL cache entry uses the smaller of five
+minutes and the link's remaining lifetime as its TTL. A cache entry therefore cannot outlive its
+link expiration, allowing `resolveLongUrl` to return a hit without a database check. Updates,
+deletes, and cleanup evict both cache directions. A cache miss still requires PostgreSQL, so Redis
+is a bounded acceleration and temporary degradation path rather than durable database failover.
 
 **Why plain JSON strings over Kafka, not typed objects**: `KafkaConfig` uses
 `StringSerializer`/`StringDeserializer` throughout to avoid a Jackson 2 vs. Jackson 3 classpath
@@ -108,9 +108,9 @@ manually in both the producer and the consumer.
 
 ## Data model
 
-Schema changes are applied via Hibernate's `ddl-auto: update` — **there is no Flyway or Liquibase
-dependency in this project.** The `.sql` files under `src/main/resources/db/migration/` are kept
-purely as human-readable change history; nothing executes them.
+Production schema changes are applied via Hibernate's `ddl-auto: update`. Flyway is test-scoped so
+the integration suite applies and verifies every migration against an empty PostgreSQL database
+without attempting to baseline the already-populated production database.
 
 ### `urls`
 

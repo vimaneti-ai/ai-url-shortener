@@ -5,13 +5,13 @@
 The backend has two complementary test layers:
 
 - **53 unit tests** isolate repositories and external clients with Mockito for fast feedback.
-- **9 integration tests** use `@SpringBootTest`, MockMvc, Flyway, and a disposable PostgreSQL 15
-  Testcontainer. They send real JSON through Spring MVC and verify persisted records, migrations,
-  constraints, redirects, validation errors, expiration, update/delete behavior, and analytics.
+- **13 integration tests** use `@SpringBootTest`, MockMvc, Flyway, and disposable PostgreSQL 15 and
+  Redis 7 Testcontainers. Nine API/database tests verify persisted records, migrations, constraints,
+  redirects, validation errors, expiration, update/delete behavior, and analytics. Four cache tests
+  exercise real Redis operations, server hit/miss statistics, TTL, and eviction.
 
-Redis and Kafka remain mocked in this integration layer so these tests have one deliberate boundary:
-Spring MVC through PostgreSQL. Real-Redis cache tests and Kafka broker integration are separate work
-rather than being mislabeled as part of the database/API suite.
+Kafka remains mocked because broker integration is outside these API/database and cache test
+boundaries. Redis is mocked by the API/database tests and real in `RedisCacheIT`.
 
 ## Production smoke checks
 
@@ -52,9 +52,9 @@ development:
 
 ```
 Unit tests run: 53, Failures: 0, Errors: 0, Skipped: 0
-Integration tests run: 9, Failures: 0, Errors: 0, Skipped: 0
-Total tests: 62
-Line coverage: 90.2% (296 of 328 included lines)
+Integration tests run: 13, Failures: 0, Errors: 0, Skipped: 0
+Total tests: 66
+Line coverage: 90.9% (300 of 330 included lines)
 ```
 
 | Test class | Tests | Covers |
@@ -68,6 +68,15 @@ Line coverage: 90.2% (296 of 328 included lines)
 | `GlobalExceptionHandlerTest` | 4 | Domain status mappings and safe unexpected-error responses |
 | `UrlApiIT` | 7 | Full Spring MVC request handling and PostgreSQL persistence across create, redirect, validation, expiration, update/delete, and analytics |
 | `DatabaseMigrationIT` | 2 | All four Flyway migrations plus PostgreSQL uniqueness and foreign-key enforcement |
+| `RedisCacheIT` | 4 | Real Redis miss/hit counters and ratio, no additional database query on a hit, expiry-bounded TTL, and update/delete eviction |
+
+### Redis cache evidence
+
+`RedisCacheIT` resets Redis server statistics, resolves the same code twice, and verifies one
+`keyspace_misses` event followed by one `keyspace_hits` event: a controlled **50% hit ratio**. It
+also uses Hibernate statistics to prove that the second resolution does not execute another
+PostgreSQL query. This is a deterministic functional test of the hit-ratio calculation, not a claim
+that production traffic will always have a 50% hit ratio.
 
 ## Coverage gate
 

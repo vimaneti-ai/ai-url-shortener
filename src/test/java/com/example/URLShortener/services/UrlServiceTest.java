@@ -158,13 +158,11 @@ class UrlServiceTest {
     @Test
     void resolveLongUrl_returnsFromCache_whenPresent() {
         when(valueOperations.get("short:code")).thenReturn("https://cached.com");
-        URL entity = URL.builder().id(1).shortUrl("code").longUrl("https://cached.com").expiresAt(LocalDateTime.now().plusMinutes(10)).active(true).build();
-        when(urlRepository.findByShortUrlAndActiveTrue("code")).thenReturn(Optional.of(entity));
 
         String result = urlService.resolveLongUrl("code");
 
         assertThat(result).isEqualTo("https://cached.com");
-        verify(urlRepository).findByShortUrlAndActiveTrue("code");
+        verifyNoInteractions(urlRepository);
     }
 
     @Test
