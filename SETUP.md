@@ -95,7 +95,7 @@ From the repository root:
 
 ```bash
 ./mvnw test          # 53 isolated unit tests
-./mvnw clean verify  # unit + 21 integration executions + JaCoCo gate
+./mvnw clean verify  # unit + 24 integration executions + JaCoCo gate
 ```
 
 The full verification requires Docker because PostgreSQL and Redis integration tests use
@@ -116,7 +116,13 @@ aggregate status means the application cannot reach one of its required dependen
 `docker compose logs backend` for the failing connection.
 
 Only the basic `/actuator/health` response is proxied through the containerized frontend. Other
-actuator paths intentionally return `404` and health component details are disabled.
+actuator paths intentionally return `404` at port 4200 and health component details are disabled.
+Internal metrics remain available directly from the backend:
+
+```bash
+curl http://localhost:8080/actuator/metrics | jq
+curl http://localhost:8080/actuator/prometheus | head
+```
 
 **Frontend loads but every request fails** — confirm the backend is actually running and
 reachable at `:8080` before starting `ng serve`; the dev-server proxy doesn't retry or queue

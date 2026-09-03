@@ -124,6 +124,12 @@ results in `docs/testing.md`; the k6 smoke profile passed locally, while the sub
 run preserved 100% correctness but failed its latency thresholds. The dated report retains both
 facts instead of converting “the test ran” into an unsupported “the performance target passed.”
 
+The subsequent metrics task followed the same pattern: enabling an Actuator name in configuration
+was not treated as proof. `MetricsIT` verifies that the aggregate health response stays restricted,
+the JSON endpoint contains runtime and HTTP meters, and Prometheus exposition contains JVM/process
+series. The public nginx deny rule was retained so satisfying observability did not expose detailed
+operational data on the public domain.
+
 ---
 
 ### Postscript: the documentation set you're reading was itself caught by this loop

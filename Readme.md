@@ -46,9 +46,9 @@ reproduction steps.
 - **Input Validation** — URI parsing, an explicit HTTP/HTTPS scheme allowlist, alias constraints, and unsafe-character rejection
 - **Graceful Degradation** — redirects still work if Kafka is down
 - **Consistent API Errors** — centralized `@RestControllerAdvice` returns structured JSON errors
-- **Restricted Actuator** — public nginx exposes only basic `/actuator/health`; sensitive actuator endpoints are not exposed
+- **Internal Metrics** — Actuator JSON metrics and Prometheus exposition cover HTTP, JVM, CPU, repositories, and the database pool; public nginx still exposes only basic health
 - **CI/CD** — GitHub Actions tests both apps, validates Docker images, and deploys `main` to EC2 through short-lived AWS OIDC credentials and SSM (no stored SSH or AWS access keys)
-- **Automated Testing** — 53 unit tests plus 21 integration tests backed by PostgreSQL and Redis Testcontainers, including a dedicated security suite; 91.2% line coverage with an 80% minimum enforced by JaCoCo
+- **Automated Testing** — 53 unit tests plus 24 integration-test executions backed by PostgreSQL and Redis Testcontainers, including dedicated security and observability coverage; 91.2% line coverage with an 80% minimum enforced by JaCoCo
 - **Reproducible Load Test** — k6 smoke and 1,000-concurrent-user profiles with endpoint-specific correctness, failure-rate, p95, and p99 thresholds
 
 ![Analytics Dashboard](docs/images/analytics.png)
@@ -366,7 +366,7 @@ Environment variable overrides: `KAFKA_SERVERS`, `APP_BASE_URL`, `RATE_LIMIT`.
 ./mvnw clean verify
 ```
 
-**74 backend tests**: 53 isolated unit tests plus 21 integration tests. The integration layer loads
+**77 backend test executions**: 53 isolated unit tests plus 24 integration-test executions. The integration layer loads
 the complete Spring context, exercises the REST API through MockMvc, applies all Flyway migrations
 to disposable PostgreSQL 15 databases, runs cache behavior against a real Redis 7 container, and
 verifies SQL-injection handling, unsafe URLs, XSS payloads, expiration, and rate limiting. Current
@@ -385,10 +385,26 @@ line coverage is **91.2%** — JaCoCo enforces an 80% minimum on every build.
 | `DatabaseMigrationIT`        | 2  | Flyway migration history, schema shape, unique short-code constraint, and click-event foreign key |
 | `RedisCacheIT`               | 4  | Real Redis miss/hit ratio, database-query avoidance, expiry-bounded TTL, and update/delete eviction |
 | `SecurityIT`                 | 8  | SQL-injection handling, invalid schemes/URLs, XSS payloads, expired links, and rate-limit enforcement |
+| `MetricsIT`                  | 3  | Restricted health response, JSON metric discovery, and Prometheus exposition |
 
 Integration tests use Docker through Testcontainers. Docker Desktop (or another compatible Docker
 engine) must be running before `./mvnw clean verify`; Maven Failsafe runs classes ending in `IT`
 during the `integration-test` and `verify` phases.
+
+### Metrics
+
+The backend exposes `/actuator/metrics`, `/actuator/metrics/{name}`, and `/actuator/prometheus` on
+port 8080. In production that port is bound to `127.0.0.1`, and both nginx layers allow only the
+aggregate `/actuator/health` endpoint publicly. Inspect metrics locally or from inside EC2:
+
+```bash
+curl http://localhost:8080/actuator/metrics | jq
+curl http://localhost:8080/actuator/metrics/http.server.requests | jq
+curl http://localhost:8080/actuator/prometheus | head
+```
+
+All Prometheus series receive `application="url-shortener"`. These endpoints provide data for a
+future Prometheus/Grafana collector; the repository does not currently run those servers.
 
 There is no `WebControllerTest` — there is no server-rendered web UI to test; the frontend is a
 separate Angular app with its own Karma/Jasmine unit tests (`cd frontend && npm test`), not counted

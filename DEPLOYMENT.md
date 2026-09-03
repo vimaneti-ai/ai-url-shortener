@@ -101,9 +101,20 @@ frontend on `127.0.0.1:4200`. Do not publicly expose the frontend container, Pos
 or backend ports.
 
 The frontend proxies only the exact `/actuator/health` path and returns `404` for other
-`/actuator/*` paths. Spring Boot exposes only `health`, with health details and component
-names disabled. Do not expose backend port `8080` directly through an EC2 security group or public
-load balancer, because nginx is the intended public boundary.
+`/actuator/*` paths. Spring Boot also exposes `metrics` and `prometheus` internally, while health
+details and component names remain disabled. Do not expose backend port `8080` through an EC2
+security group or public load balancer, because nginx is the intended public boundary.
+
+Inspect internal production metrics through an EC2 shell or SSM Run Command:
+
+```bash
+curl -s http://localhost:8080/actuator/metrics | jq
+curl -s http://localhost:8080/actuator/metrics/http.server.requests | jq
+curl -s http://localhost:8080/actuator/prometheus | head -40
+```
+
+From outside EC2, `/actuator/metrics` and `/actuator/prometheus` should return `404`; this is a
+deliberate security boundary, not a missing endpoint.
 
 ## Running on a memory-constrained EC2 instance
 

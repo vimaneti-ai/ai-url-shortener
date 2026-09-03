@@ -94,6 +94,10 @@ system nginx is deliberately outside Compose so it can own ports 80/443 and let 
    between a shorten view and an analytics/manage view. Talks to the API over relative `/api/v1/*`
    URLs, proxied to the backend by the dev server locally (see `SETUP.md`/`DEPLOYMENT.md` for what
    that means in production).
+9. **Observability** — Spring Boot Actuator and Micrometer expose JSON metric discovery/details and
+   Prometheus-format HTTP, JVM, process, repository, and Hikari pool measurements on backend port
+   8080. Production binds that port to localhost; frontend and system nginx publish only aggregate
+   health, keeping detailed operational data private.
 
 **Warm-cache redirects do not query Postgres.** Every URL cache entry uses the smaller of five
 minutes and the link's remaining lifetime as its TTL. A cache entry therefore cannot outlive its

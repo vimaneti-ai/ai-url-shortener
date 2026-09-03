@@ -5,12 +5,13 @@
 The backend has two complementary test layers:
 
 - **53 unit tests** isolate repositories and external clients with Mockito for fast feedback.
-- **21 integration tests** use `@SpringBootTest`, MockMvc, Flyway, and disposable PostgreSQL 15 and
+- **24 integration-test executions** use `@SpringBootTest`, MockMvc, Flyway, and disposable PostgreSQL 15 and
   Redis 7 Testcontainers. Nine API/database tests verify persisted records, migrations, constraints,
   redirects, validation errors, expiration, update/delete behavior, and analytics. Four cache tests
   exercise real Redis operations, server hit/miss statistics, TTL, and eviction. Eight security
   executions cover SQL-injection handling, invalid URL forms, XSS payloads, expired links, and
-  rate limiting.
+  rate limiting. Three observability checks verify the restricted health payload, metric discovery,
+  and Prometheus output.
 
 Kafka remains mocked because broker integration is outside these API/database and cache test
 boundaries. Redis is mocked by the API/database tests and real in `RedisCacheIT`.
@@ -79,8 +80,8 @@ development:
 
 ```
 Unit tests run: 53, Failures: 0, Errors: 0, Skipped: 0
-Integration tests run: 21, Failures: 0, Errors: 0, Skipped: 0
-Total tests: 74
+Integration tests run: 24, Failures: 0, Errors: 0, Skipped: 0
+Total tests: 77
 Line coverage: 91.2% (320 of 351 included lines)
 ```
 
@@ -97,6 +98,7 @@ Line coverage: 91.2% (320 of 351 included lines)
 | `DatabaseMigrationIT` | 2 | All four Flyway migrations plus PostgreSQL uniqueness and foreign-key enforcement |
 | `RedisCacheIT` | 4 | Real Redis miss/hit counters and ratio, no additional database query on a hit, expiry-bounded TTL, and update/delete eviction |
 | `SecurityIT` | 8 | Four invalid/unsafe URL cases plus SQL-injection handling, XSS rejection, expired-link behavior, and `429` rate limiting |
+| `MetricsIT` | 3 | Aggregate-only health, JSON metric names, and Prometheus JVM/process exposition |
 
 ### Security evidence
 

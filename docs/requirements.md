@@ -53,6 +53,10 @@ those response fields do not change the assessment's required create-input field
   HTTPS URLs with a host and no user-info component. Dedicated PostgreSQL-backed integration tests
   cover SQL-like input, unsafe schemes, malformed URLs, XSS payloads, expired links, and `429` rate
   limiting.
+- **Metrics**: the internal backend exposes Actuator metric discovery/detail endpoints and
+  Prometheus-format measurements for HTTP, JVM, process, repository, and connection-pool behavior.
+  Production binds the backend to localhost and nginx blocks public metric access; only aggregate
+  health is public.
 - **Unpredictable short codes**: not actually true today — Base62-encoded auto-increment IDs are
   sequential and enumerable (see `design-decisions.md`). Custom aliases are the only way to get an
   unpredictable code.
@@ -115,6 +119,7 @@ The four previously missing engineering-test artifacts are now represented as se
 
 The 1,000-user artifact and first dated run are complete. That run produced zero functional
 failures but exceeded the configured latency limits, making performance tuning and an instrumented
-rerun the next step rather than changing the result to “pass.” The broader assessment items still
-pending outside these four tasks are an exposed metrics endpoint/dashboard (production
-currently exposes only restricted health) and a finalized 10-minute demo script.
+rerun the next step rather than changing the result to “pass.” Metrics are now implemented as
+internal Actuator and Prometheus endpoints with integration tests; they are intentionally not
+public. The remaining presentation artifact is a finalized 10-minute demo script. A Prometheus
+server and Grafana dashboard would improve operations but are not required to expose measurements.

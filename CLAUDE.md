@@ -20,7 +20,7 @@ you'll want to know about before touching that path), and
 ./mvnw spring-boot:run                          # run the API on :8080
 ./mvnw verify                                    # full test suite + JaCoCo coverage gate (80% min)
 ./mvnw test                                      # 53 unit tests only; no Testcontainers
-./mvnw failsafe:integration-test failsafe:verify # 21 integration-test executions
+./mvnw failsafe:integration-test failsafe:verify # 24 integration-test executions (after test-compile)
 ./mvnw test -Dtest=UrlServiceTest                # run one test class
 ./mvnw test -Dtest=UrlServiceTest#methodName     # run one test method
 ```
@@ -56,7 +56,8 @@ The backend must be running for the frontend to do anything beyond render its st
 depends on the API for every action (shorten, analytics, redirect, update, delete).
 
 The nginx production image proxies only the exact `/actuator/health` endpoint. Other actuator
-paths return `404`; Spring exposes only `health`, with health details disabled.
+paths return `404` publicly. Spring itself exposes `health`, `metrics`, and `prometheus` on backend
+port 8080; production binds that port to localhost, and health details remain disabled.
 
 **CI/CD:** `.github/workflows/ci-deploy.yml` runs backend/frontend validation in parallel, then
 builds both Docker images. Pushes to `main` deploy through GitHub OIDC and AWS SSM; no SSH key is
@@ -137,10 +138,10 @@ remain compatibility aliases, but are not the canonical assessment contract.
 `AnalyticsService` via `@Value` to build the full `shortUrl` field in their respective responses —
 if you change how that URL is constructed, update both.
 
-**Testing has unit and integration layers.** Surefire runs 53 isolated unit tests. Failsafe runs 21
+**Testing has unit and integration layers.** Surefire runs 53 isolated unit tests. Failsafe runs 24
 integration-test executions across `UrlApiIT`, `DatabaseMigrationIT`, `RedisCacheIT`, and
-`SecurityIT`, using the full Spring context, MockMvc, PostgreSQL 15 Testcontainers, and a real Redis
-7 container. Kafka remains mocked at this boundary. `./mvnw verify` runs both layers and enforces an
+`SecurityIT` plus `MetricsIT`, using the full Spring context, MockMvc, PostgreSQL 15 Testcontainers,
+and a real Redis 7 container. Kafka remains mocked at this boundary. `./mvnw verify` runs both layers and enforces an
 80% JaCoCo line-coverage minimum (currently 91.2%); see `docs/testing.md` for the exact evidence and
 the separate k6 performance package.
 
