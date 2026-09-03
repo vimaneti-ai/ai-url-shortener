@@ -47,10 +47,16 @@ spring:
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
 management:
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+      probes:
+        enabled: false
   endpoints:
     web:
       exposure:
-        include: beans,health,info
+        include: health
 
 app:
   base-url: ${APP_BASE_URL:http://localhost:8080/api/v1}

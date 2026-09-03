@@ -8,12 +8,12 @@ config file actually does versus what it looks like it does at a glance.
 - **`Dockerfile`** (repo root) — multi-stage build (Maven build stage → `eclipse-temurin:21-jre-jammy`
   runtime) producing a single runnable jar. Builds and packages the **backend only**.
 - **`frontend/Dockerfile`** — multi-stage build (`node:20.12.1-alpine` → `nginx:alpine`) that builds
-  the Angular app and serves the static output via nginx on port 80. It builds and serves the
-  **frontend only** — nginx here does not proxy `/api/*` anywhere, so see "Deploying the frontend"
-  below before assuming this image alone is a working deployment.
-- **`docker-compose.yml`** — Postgres, Redis, and Kafka (KRaft mode) for **local development only**.
-  It does not include either application; you run those with `./mvnw spring-boot:run` and
-  `npx ng serve` alongside it.
+  the Angular app and serves it through nginx on port 80. `frontend/nginx.conf` proxies `/api/*`
+  and `/actuator/*` to the Compose backend service and supports SPA route fallback.
+- **`docker-compose.yml`** — builds and runs PostgreSQL, Redis, Kafka, the Spring Boot backend, and
+  the Angular frontend together. Health checks and conditional dependencies enforce startup order.
+- **`.env.example`** — committed configuration template. Copy it to the ignored `.env` file and
+  supply local/deployment-specific values before starting Compose.
 - **`render.yaml`** — a Render.com service definition for the **backend** jar only, running as a
   Docker web service. It does not provision Postgres, Redis, or Kafka, and does not deploy the
   frontend at all — see below for both.
@@ -76,25 +76,26 @@ Before it will actually work, you need to:
 returns, and it's the literal prefix redirects are served under. Get it wrong and every generated
 short link points somewhere that doesn't resolve.
 
-## Deploying the frontend
+## Running the full Compose deployment
 
-`frontend/src/app/services/api.service.ts` calls the backend via **relative URLs**
-(`/api/v1/...`). In local development, Angular's dev-server proxy (`proxy.conf.json`) forwards
-those to `localhost:8080`. `frontend/Dockerfile` builds and serves the static app via nginx, but
-**does not** include an nginx proxy rule for `/api/*` — as shipped, a container built from it will
-serve the UI correctly and then 404 on every single API call, because nginx has nowhere to send
-them. Before this image is actually usable end-to-end, either:
-
-- add an nginx `location /api/ { proxy_pass http://<backend-host>:8080; }` block (and one for
-  `/actuator/` if you want health checks reachable) to a custom `nginx.conf` and `COPY` it into the
-  image, pointed at wherever the backend container/service actually runs, or
-- put both containers behind a shared reverse proxy / API gateway that does the same routing
-  externally, rather than inside the frontend's own nginx.
+`frontend/src/app/services/api.service.ts` uses relative `/api/v1/...` URLs. Inside Compose,
+`frontend/nginx.conf` forwards them to `backend:8080`, so the browser only needs the frontend URL.
 
 ```bash
-docker build -t url-shortener-frontend ./frontend
-docker run -p 8080:80 url-shortener-frontend   # UI only, until an /api/ proxy rule is added
+cp .env.example .env
+# Set production-safe values, especially POSTGRES_PASSWORD and APP_BASE_URL.
+docker compose up --build -d
+docker compose ps
 ```
+
+On a single AWS host, expose the frontend through the load balancer/reverse proxy and avoid
+publicly exposing the Postgres, Redis, Kafka, and backend ports. The checked-in port mappings are
+for local verification and should be overridden or removed for an internet-facing deployment.
+
+The frontend proxies only the exact `/actuator/health` path and returns `404` for other
+`/actuator/*` paths. Spring Boot exposes only `health`, with health details and component
+names disabled. Do not expose backend port `8080` directly through an EC2 security group or public
+load balancer, because nginx is the intended public boundary.
 
 Building without Docker is the same `ng build` the image runs internally:
 

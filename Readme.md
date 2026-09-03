@@ -32,6 +32,7 @@ A full-stack URL shortener that creates custom, expiring links and provides clic
 - **Input Validation** — regex validation to prevent XSS and open redirects
 - **Graceful Degradation** — redirects still work if Kafka is down
 - **Consistent API Errors** — centralized `@RestControllerAdvice` returns structured JSON errors
+- **Restricted Actuator** — public nginx exposes only basic `/actuator/health`; sensitive actuator endpoints are not exposed
 - **Test Coverage** — 50 unit tests, 89.6% line coverage, 80% minimum enforced by JaCoCo
 
 ![Analytics Dashboard](docs/images/analytics.png)
@@ -118,41 +119,29 @@ This project was built iteratively with Claude, one requirement at a time — ev
 - Maven 3+
 - Docker & Docker Compose
 
-### 1. Start Infrastructure
+### Run the complete stack
 
 ```bash
-docker-compose up -d
+cp .env.example .env
+# Set a local POSTGRES_PASSWORD in .env, then:
+docker compose up --build -d
 ```
 
-This starts:
+This builds and starts:
 - **PostgreSQL** on `localhost:5431`
 - **Redis** on `localhost:6379`
 - **Kafka (KRaft)** on `localhost:9092`
+- **Spring Boot API** on `localhost:8080`
+- **Angular UI** on `localhost:4200`
 
-### 2. Run the Backend
+Open **http://localhost:4200**. The frontend nginx container proxies `/api/*` and `/actuator/*`
+to the backend container. Compose waits for infrastructure and backend health checks before
+starting dependent services.
 
-```bash
-./mvnw spring-boot:run
-```
-
-The API starts at **http://localhost:8080**. Hibernate applies schema changes automatically
-(`ddl-auto: update`) — there is no separate migration step to run.
-
-### 3. Run the Frontend
+### Stop everything
 
 ```bash
-cd frontend
-npm install
-npx ng serve
-```
-
-Open **http://localhost:4200** in your browser. The dev server proxies `/api/*` and `/actuator/*`
-through to the backend on `:8080` (see `frontend/proxy.conf.json`), so both must be running.
-
-### 4. Stop Everything
-
-```bash
-docker-compose down
+docker compose down
 ```
 
 ---

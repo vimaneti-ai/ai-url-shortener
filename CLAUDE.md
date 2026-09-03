@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project overview
 
 A URL shortener: Spring Boot 4 backend (Java 21) + a separate Angular 17 frontend, PostgreSQL,
-Redis, and Kafka. Two independent apps that must be run separately — there is no monorepo build
-tying them together. See `Readme.md` for the full feature list and API reference,
+Redis, and Kafka. They can run separately for development or together through the root Compose
+file. See `Readme.md` for the full feature list and API reference,
 `docs/architecture.md` for architecture/codebase-layout detail beyond what's below,
 `docs/design-decisions.md` for why things are built the way they are, `SETUP.md` for the fuller
 local-setup guide (including running fully via Docker, with a verified Kafka networking gotcha
@@ -32,14 +32,19 @@ npx ng build
 npx ng test       # Karma/Jasmine
 ```
 
-**Infrastructure** (from repo root):
+**Complete container stack** (from repo root):
 ```bash
-docker-compose up -d      # Postgres :5431, Redis :6379, Kafka (KRaft) :9092
-docker-compose down
+cp .env.example .env
+docker compose up --build -d  # DB, Redis, Kafka, backend :8080, frontend :4200
+docker compose ps
+docker compose down
 ```
 
 The backend must be running for the frontend to do anything beyond render its static shell — it
 depends on the API for every action (shorten, analytics, redirect, update, delete).
+
+The nginx production image proxies only the exact `/actuator/health` endpoint. Other actuator
+paths return `404`; Spring exposes only `health`, with health details disabled.
 
 There is no linter configured on either side (no Checkstyle/Spotless in `pom.xml`, no ESLint in
 `frontend/`).

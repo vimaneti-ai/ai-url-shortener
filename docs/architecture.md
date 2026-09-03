@@ -35,7 +35,9 @@ graph TD
 
 This is genuinely everything that runs: one Spring Boot process, one Postgres instance, one Redis
 instance, one Kafka broker (KRaft, no ZooKeeper), and a separate Angular SPA that talks to the API
-over HTTP. There is no load balancer, CDN, read replica, or Redis cluster in this deployment — if
+over HTTP. The root Compose file builds and runs all five services; frontend nginx proxies API and
+health requests to the backend over the shared Docker network. There is no load balancer, CDN,
+read replica, or Redis cluster in this deployment — if
 you're looking for how this would need to change to run at a much larger scale, that discussion
 lives in `design-decisions.md`, clearly separated from what's described here.
 
