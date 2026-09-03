@@ -41,6 +41,10 @@ read replica, or Redis cluster in this deployment — if
 you're looking for how this would need to change to run at a much larger scale, that discussion
 lives in `design-decisions.md`, clearly separated from what's described here.
 
+`docker-compose.prod.yml` is a deployment overlay rather than a second stack definition. It adds
+EC2 memory constraints and host-binding hardening while inheriting service topology, health checks,
+networks, volumes, builds, and environment wiring from `docker-compose.yml`.
+
 ## Components
 
 1. **Spring Boot API** (`urlController`, single controller, `/api/v1/*`) — create, redirect,

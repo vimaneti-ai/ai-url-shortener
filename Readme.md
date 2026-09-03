@@ -110,7 +110,7 @@ This project was built iteratively with Claude, one requirement at a time — ev
 
 > Quick start below. For the fuller guide — including running the whole stack via Docker and
 > troubleshooting — see [`SETUP.md`](SETUP.md). For deploying beyond your own machine, see
-> [`DEPLOYMENT.md`](DEPLOYMENT.md).
+> [`DEPLOYMENT.md`](DEPLOYMENT.md), including the EC2-specific Compose override.
 
 ### Prerequisites
 

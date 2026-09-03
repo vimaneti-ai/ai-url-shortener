@@ -40,6 +40,10 @@ docker compose ps
 docker compose down
 ```
 
+For EC2, layer `docker-compose.prod.yml` over the base file. It contains runtime memory limits,
+heap tuning, and localhost-only internal port bindings; do not duplicate those settings in the
+local-development base file.
+
 The backend must be running for the frontend to do anything beyond render its static shell — it
 depends on the API for every action (shorten, analytics, redirect, update, delete).
 

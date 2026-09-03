@@ -1,0 +1,45 @@
+# EC2/runtime overrides. Always combine this with docker-compose.yml:
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+services:
+  postgres:
+    command:
+      - postgres
+      - -p
+      - "5431"
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - max_connections=50
+    mem_limit: 300m
+    ports: !override
+      - "127.0.0.1:${POSTGRES_PORT:-5431}:5431"
+
+  redis:
+    command:
+      - redis-server
+      - --maxmemory
+      - 64mb
+      - --maxmemory-policy
+      - allkeys-lru
+    mem_limit: 100m
+    ports: !override
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+
+  kafka:
+    environment:
+      KAFKA_HEAP_OPTS: "-Xms384m -Xmx384m"
+    mem_limit: 700m
+    ports: !override
+      - "127.0.0.1:${KAFKA_PORT:-9092}:9092"
+
+  backend:
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx384m -Xss256k"
+    mem_limit: 500m
+    ports: !override
+      - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
+
+  frontend:
+    mem_limit: 100m
+    ports: !override
+      - "0.0.0.0:${FRONTEND_PORT:-80}:80"

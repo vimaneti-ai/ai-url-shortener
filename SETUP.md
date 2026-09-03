@@ -80,6 +80,9 @@ Health-aware `depends_on` conditions prevent dependent services from starting pr
 Check status or logs with `docker compose ps` and `docker compose logs -f`. Stop all containers
 with `docker compose down`; add `-v` only when you intentionally want to delete PostgreSQL data.
 
+The base Compose file intentionally has no EC2 memory caps and exposes development ports normally.
+For EC2, use the tracked `docker-compose.prod.yml` override described in `DEPLOYMENT.md`.
+
 ## Troubleshooting
 
 **"Port already in use" on 8080 or 4200** — something (often a previous run of this same app) is

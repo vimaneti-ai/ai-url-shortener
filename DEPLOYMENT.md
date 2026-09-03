@@ -12,6 +12,9 @@ config file actually does versus what it looks like it does at a glance.
   and `/actuator/*` to the Compose backend service and supports SPA route fallback.
 - **`docker-compose.yml`** — builds and runs PostgreSQL, Redis, Kafka, the Spring Boot backend, and
   the Angular frontend together. Health checks and conditional dependencies enforce startup order.
+- **`docker-compose.prod.yml`** — EC2-specific runtime overrides: memory caps, JVM/Kafka heap
+  tuning, smaller Postgres/Redis footprints, and localhost-only bindings for internal services.
+  It must be layered on top of the base file, not run by itself.
 - **`.env.example`** — committed configuration template. Copy it to the ignored `.env` file and
   supply local/deployment-specific values before starting Compose.
 - **`render.yaml`** — a Render.com service definition for the **backend** jar only, running as a
@@ -96,6 +99,33 @@ The frontend proxies only the exact `/actuator/health` path and returns `404` fo
 `/actuator/*` paths. Spring Boot exposes only `health`, with health details and component
 names disabled. Do not expose backend port `8080` directly through an EC2 security group or public
 load balancer, because nginx is the intended public boundary.
+
+## Running on a memory-constrained EC2 instance
+
+Keep local-development defaults in `docker-compose.yml`; do not copy production tuning into the
+base file. On EC2, set `FRONTEND_PORT=80`, a strong `POSTGRES_PASSWORD`, and the public
+`APP_BASE_URL` in the ignored `.env`, then layer the tracked production override on top:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+```
+
+The override caps the five services at approximately 1.7 GB total and binds Postgres, Redis,
+Kafka, and the backend to `127.0.0.1`. Only frontend nginx binds publicly. The EC2 security group
+should independently allow only `22` from an administrator IP and `80`/`443` publicly.
+
+To inspect the fully merged configuration before starting it:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml config
+```
+
+To stop the same project, include the same files:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+```
 
 Building without Docker is the same `ng build` the image runs internally:
 
