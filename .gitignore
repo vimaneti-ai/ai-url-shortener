@@ -35,3 +35,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Archify browser-validation artifacts ###
+docs/architecture/*.visual-check.*
