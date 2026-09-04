@@ -71,7 +71,7 @@ docker compose down
 
 ## Option B — Fully via Docker
 
-Compose builds and runs all five services on one network. Create your local environment file once:
+Compose builds and runs all seven services on one network. Create your local environment file once:
 
 ```bash
 cp .env.example .env
@@ -82,6 +82,11 @@ docker compose up --build -d
 Open [http://localhost:4200](http://localhost:4200). The backend uses the service names
 `postgres`, `redis`, and `kafka`; nginx forwards `/api/*` and `/actuator/*` to `backend:8080`.
 Health-aware `depends_on` conditions prevent dependent services from starting prematurely.
+
+Grafana is also up at [http://localhost:3000](http://localhost:3000) (login `admin` /
+`GRAFANA_ADMIN_PASSWORD` from `.env`, or `change-me` if you didn't set one), with a starter
+dashboard already provisioned — nothing to configure manually. Prometheus itself is at
+[http://localhost:9090](http://localhost:9090) if you want to query it directly.
 
 Check status or logs with `docker compose ps` and `docker compose logs -f`. Stop all containers
 with `docker compose down`; add `-v` only when you intentionally want to delete PostgreSQL data.
@@ -110,7 +115,7 @@ already listening there:
 lsof -ti :8080 | xargs kill -9   # or :4200
 ```
 
-**Backend health check returns `DOWN`** — check `docker compose ps` for all five
+**Backend health check returns `DOWN`** — check `docker compose ps` for all seven
 `url_shortener_*` containers; if they're not `Up`, `docker compose up -d` again. A `DOWN`
 aggregate status means the application cannot reach one of its required dependencies; inspect
 `docker compose logs backend` for the failing connection.

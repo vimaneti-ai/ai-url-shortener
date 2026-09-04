@@ -36,7 +36,7 @@ npx ng test       # Karma/Jasmine
 **Complete container stack** (from repo root):
 ```bash
 cp .env.example .env
-docker compose up --build -d  # DB, Redis, Kafka, backend :8080, frontend :4200
+docker compose up --build -d  # DB, Redis, Kafka, backend :8080, frontend :4200, Prometheus :9090, Grafana :3000
 docker compose ps
 docker compose down
 ```
@@ -144,6 +144,18 @@ integration-test executions across `UrlApiIT`, `DatabaseMigrationIT`, `RedisCach
 and a real Redis 7 container. Kafka remains mocked at this boundary. `./mvnw verify` runs both layers and enforces an
 80% JaCoCo line-coverage minimum (currently 91.2%); see `docs/testing.md` for the exact evidence and
 the separate k6 performance package.
+
+**Prometheus + Grafana run as part of the same Compose stack**, not a separate concern — config is
+in `monitoring/` (`prometheus.yml` scrape config, `grafana/provisioning/` for the auto-provisioned
+datasource + dashboard). Both bind to `127.0.0.1` in production. The public route
+(`https://short.vinodmaneti.com/grafana/`) is a system-nginx block that lives **only on the EC2
+host** — it is not tracked in this repo, so don't go looking for it here, and remember it has to be
+re-added by hand if the host is ever rebuilt. If you ever touch that block: `proxy_pass` must have
+no trailing slash after the port, or Grafana redirect-loops on itself (hit this exact bug once
+already). The Grafana admin password comes from a GitHub Actions secret
+(`GRAFANA_ADMIN_PASSWORD`), base64-round-tripped into the EC2 `.env` at deploy time specifically so
+the raw value never sits inside the nested single-quoted remote script — see
+`docs/design-decisions.md` for why that matters.
 
 **Frontend is one component.** There's no routing module and no lazy-loaded feature modules — the
 entire UI (`app.component.ts/html/css`) is a single component that switches between "shorten" and

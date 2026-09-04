@@ -69,3 +69,8 @@ address, User-Agent string, and resolved country for that code — there is no a
 this endpoint. Because the application is publicly deployed, treat the analytics endpoint as
 exposing visitor IP addresses to anyone who knows or guesses a short code, not just the link's
 creator.
+
+**The Grafana dashboard is a separate, narrower surface.** It shows aggregate operational metrics —
+JVM memory, CPU, request rate by path, database connection counts — with no per-visitor IP
+addresses, user agents, or click-level data of any kind. It's also the one piece of internal
+tooling that actually requires a login (Grafana's own), unlike the analytics endpoint above.

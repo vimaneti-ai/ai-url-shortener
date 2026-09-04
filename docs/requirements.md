@@ -121,5 +121,7 @@ The 1,000-user artifact and first dated run are complete. That run produced zero
 failures but exceeded the configured latency limits, making performance tuning and an instrumented
 rerun the next step rather than changing the result to “pass.” Metrics are now implemented as
 internal Actuator and Prometheus endpoints with integration tests; they are intentionally not
-public. The remaining presentation artifact is a finalized 10-minute demo script. A Prometheus
-server and Grafana dashboard would improve operations but are not required to expose measurements.
+public. A Prometheus server and a provisioned Grafana dashboard now run alongside the application
+(`monitoring/`, see `design-decisions.md` and `DEPLOYMENT.md`), scraping the existing endpoint over
+the internal Docker network — public access is gated by Grafana's own login, not by exposing raw
+metrics. The remaining presentation artifact is a finalized 10-minute demo script.

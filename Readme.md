@@ -47,6 +47,7 @@ reproduction steps.
 - **Graceful Degradation** — redirects still work if Kafka is down
 - **Consistent API Errors** — centralized `@RestControllerAdvice` returns structured JSON errors
 - **Internal Metrics** — Actuator JSON metrics and Prometheus exposition cover HTTP, JVM, CPU, repositories, and the database pool; public nginx still exposes only basic health
+- **Metrics Dashboard** — a provisioned Grafana dashboard (JVM heap, CPU, HTTP request rate, DB connections) scrapes the Prometheus endpoint over the internal Docker network; reachable at `/grafana/` behind Grafana's own login, not raw public metric endpoints
 - **CI/CD** — GitHub Actions tests both apps, validates Docker images, and deploys `main` to EC2 through short-lived AWS OIDC credentials and SSM (no stored SSH or AWS access keys)
 - **Automated Testing** — 53 unit tests plus 24 integration-test executions backed by PostgreSQL and Redis Testcontainers, including dedicated security and observability coverage; 91.2% line coverage with an 80% minimum enforced by JaCoCo
 - **Reproducible Load Test** — k6 smoke and 1,000-concurrent-user profiles with endpoint-specific correctness, failure-rate, p95, and p99 thresholds
@@ -153,6 +154,8 @@ This builds and starts:
 - **Kafka (KRaft)** on `localhost:9092`
 - **Spring Boot API** on `localhost:8080`
 - **Angular UI** on `localhost:4200`
+- **Prometheus** on `localhost:9090`
+- **Grafana** on `localhost:3000` (login `admin` / `GRAFANA_ADMIN_PASSWORD` from `.env`, defaulting to `change-me` locally)
 
 Open **http://localhost:4200**. The frontend nginx container proxies `/api/*` and `/actuator/*`
 to the backend container. Compose waits for infrastructure and backend health checks before
@@ -403,8 +406,13 @@ curl http://localhost:8080/actuator/metrics/http.server.requests | jq
 curl http://localhost:8080/actuator/prometheus | head
 ```
 
-All Prometheus series receive `application="url-shortener"`. These endpoints provide data for a
-future Prometheus/Grafana collector; the repository does not currently run those servers.
+All Prometheus series receive `application="url-shortener"`. A Prometheus server and a Grafana
+dashboard now actually run — `docker compose up -d` starts both alongside the app (see
+`monitoring/` and [`DEPLOYMENT.md`](DEPLOYMENT.md#monitoring-prometheus--grafana)). Locally, Grafana
+is at [http://localhost:3000](http://localhost:3000); in production it's reachable at
+`https://short.vinodmaneti.com/grafana/`, gated by Grafana's own login rather than public metric
+exposure — the raw `/actuator/metrics` and `/actuator/prometheus` endpoints stay blocked at the
+edge exactly as described above.
 
 There is no `WebControllerTest` — there is no server-rendered web UI to test; the frontend is a
 separate Angular app with its own Karma/Jasmine unit tests (`cd frontend && npm test`), not counted

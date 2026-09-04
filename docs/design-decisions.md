@@ -94,6 +94,27 @@ a fresh PostgreSQL Testcontainer, and `DatabaseMigrationIT` verifies migration h
 and foreign-key behavior. They still do **not** run against the existing EC2 database during
 deployment, so entity changes and migration history must be maintained together.
 
+## Grafana behind a login, not raw metrics exposed publicly
+
+`/actuator/prometheus` was already blocked at the edge (see "Observability" in `architecture.md`),
+so the question when adding a dashboard was how to let it actually be *viewed* without reopening
+that boundary. Rather than expose the raw endpoint or bind Grafana's port publicly, Prometheus
+scrapes the backend over the internal Docker network only (both bind to `127.0.0.1`), and the one
+public entry point is a system-nginx `/grafana/` route gated by Grafana's own authentication. This
+means the access-control decision lives in one place (Grafana's login) instead of two (an nginx
+rule guessing which metric paths are "safe" to expose). The trade-off: that nginx route lives only
+on the EC2 host, not in this repo, so it has to be re-created by hand if the host is ever rebuilt —
+documented explicitly in `DEPLOYMENT.md` rather than assumed.
+
+The Grafana admin password is injected from a GitHub Actions secret at deploy time via a
+base64 round-trip rather than being interpolated directly into the deploy script. That script is
+nested inside a JSON payload (for AWS SSM) *and* a further single-quoted remote `bash -lc '...'` —
+a password containing an unescaped `'` or `$` would otherwise be able to break out of that quoting.
+Base64's output alphabet contains none of bash's metacharacters, so the encoded value is safe to
+embed literally at every layer; only the final decode (inside the remote single-quoted script)
+reconstructs the real password. Verified directly with a deliberately hostile test password
+(embedded quotes, `$`, and a backtick) before this went anywhere near the production secret.
+
 ---
 
 **Why there's no "scaling this to a billion URLs" section here**: that's a different kind of

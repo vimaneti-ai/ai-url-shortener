@@ -41,7 +41,8 @@ This is genuinely everything that runs: one Spring Boot process, one Postgres in
 instance, one Kafka broker (KRaft, no ZooKeeper), and a separate Angular SPA. On EC2, system nginx
 terminates HTTPS for `short.vinodmaneti.com` and forwards to the containerized frontend on
 `127.0.0.1:4200`; frontend nginx then proxies API and health requests to the backend over the shared
-Docker network. The root Compose file builds and runs all five services. There is no load balancer, CDN,
+Docker network. The root Compose file builds and runs all seven services (Postgres, Redis, Kafka,
+backend, frontend, Prometheus, Grafana). There is no load balancer, CDN,
 read replica, or Redis cluster in this deployment — if
 you're looking for how this would need to change to run at a much larger scale, that discussion
 lives in `design-decisions.md`, clearly separated from what's described here.
@@ -98,6 +99,12 @@ system nginx is deliberately outside Compose so it can own ports 80/443 and let 
    Prometheus-format HTTP, JVM, process, repository, and Hikari pool measurements on backend port
    8080. Production binds that port to localhost; frontend and system nginx publish only aggregate
    health, keeping detailed operational data private.
+10. **Prometheus + Grafana** (`monitoring/`) — Prometheus scrapes `backend:8080/actuator/prometheus`
+    over the internal Docker network every 15s; Grafana auto-provisions that datasource and a
+    starter dashboard (JVM heap, CPU, HTTP request rate by path, DB connections). Both bind to
+    `127.0.0.1` in production — Grafana is reachable publicly only through a system-nginx `/grafana/`
+    route (added manually on the EC2 host, not tracked in this repo) with Grafana's own login as the
+    access boundary, not by exposing the raw metrics endpoints themselves.
 
 **Warm-cache redirects do not query Postgres.** Every URL cache entry uses the smaller of five
 minutes and the link's remaining lifetime as its TTL. A cache entry therefore cannot outlive its

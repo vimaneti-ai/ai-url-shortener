@@ -131,10 +131,10 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 ```
 
-The override caps the five services at approximately 1.7 GB total and binds Postgres, Redis,
-Kafka, the backend, and the containerized frontend to `127.0.0.1`. System nginx is the only public
-application listener. The EC2 security group should independently allow only `22` from an
-administrator IP and `80`/`443` publicly.
+The override caps the seven services at approximately 2.05 GB total and binds Postgres, Redis,
+Kafka, the backend, the containerized frontend, Prometheus, and Grafana to `127.0.0.1`. System
+nginx is the only public application listener. The EC2 security group should independently allow
+only `22` from an administrator IP and `80`/`443` publicly.
 
 The DNS `A` record for `short.vinodmaneti.com` points to Elastic IP `16.59.235.190`. Certbot manages
 the Let's Encrypt certificate and nginx redirect; validate renewal after installation with:
@@ -190,6 +190,43 @@ curl -I http://short.vinodmaneti.com
 curl https://short.vinodmaneti.com/actuator/health
 ```
 
+## Monitoring: Prometheus + Grafana
+
+`docker compose up -d` already starts Prometheus and Grafana alongside the other five services —
+they're part of the same `docker-compose.yml`, not a separate stack. Config lives in `monitoring/`:
+
+- `monitoring/prometheus.yml` — scrapes `backend:8080/actuator/prometheus` every 15s over the
+  internal Docker network. No public exposure change is needed for this to work.
+- `monitoring/grafana/provisioning/` — auto-provisions the Prometheus datasource and a starter
+  dashboard (`url-shortener.json`: JVM heap, CPU, HTTP request rate by path, DB connections) on
+  boot, so there's nothing to click through manually after a fresh deploy.
+
+**In production**, both bind to `127.0.0.1` via `docker-compose.prod.yml` (same pattern as every
+other service) and Grafana is additionally configured with:
+
+```yaml
+GF_SERVER_ROOT_URL: https://short.vinodmaneti.com/grafana/
+GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+```
+
+so it generates correct links when served under a subpath. The public route itself —
+`location /grafana/ { proxy_pass http://127.0.0.1:3000; ... }` in the system nginx config — is
+**not tracked in this repo** (it lives only in `/etc/nginx/sites-available/url-shortener` on the
+EC2 host, the same untracked file the base HTTPS server block lives in). If the host is ever
+rebuilt, that block has to be re-added by hand; it isn't recreated by the deploy pipeline.
+
+One easy mistake to avoid if you ever touch that nginx block: `proxy_pass` must have **no trailing
+slash** after the port (`http://127.0.0.1:3000;`, not `.../3000/;`). With the trailing slash, nginx
+strips the `/grafana/` prefix before forwarding, but Grafana (with `SERVE_FROM_SUB_PATH=true`)
+expects to receive the full path — the mismatch causes Grafana to redirect `/grafana/` back to
+itself in an infinite loop. Confirmed by hitting exactly this bug on the first deploy.
+
+**The admin password** comes from a GitHub Actions repository secret (`GRAFANA_ADMIN_PASSWORD`),
+injected into the EC2 `.env` file at deploy time — see "GitHub Actions CI/CD" below for exactly how
+that avoids the raw password ever sitting inside a quote-sensitive shell string. Set that secret
+before your first deploy after adding this; without it, Grafana falls back to the compose file's
+`change-me` default, which you do not want live.
+
 ## GitHub Actions CI/CD
 
 `.github/workflows/ci-deploy.yml` validates pull requests and pushes with four ordered jobs:
@@ -212,6 +249,14 @@ EC2_INSTANCE_ID=i-0ac29993035d7d5ee
 No EC2 private key or long-lived AWS access key is stored in GitHub. The OIDC role may only send
 `AWS-RunShellScript` to this instance and read that command's result. EC2 itself uses an instance
 role with `AmazonSSMManagedInstanceCore` so the SSM agent can receive commands.
+
+The deploy step also reads one repository **secret**, `GRAFANA_ADMIN_PASSWORD`, and writes/updates
+it in the EC2 `.env` before bringing the stack up (upserting the line rather than assuming it's
+already there). The value is base64-encoded on the runner before it's embedded in the remote
+script and decoded again only inside the final single-quoted `bash -lc '...'` on the EC2 side — it
+never sits in the SSM JSON payload or an intermediate shell string in its raw form, so a password
+containing a `'` or `$` can't break the quoting at any layer. See `design-decisions.md` for why
+this matters and how it was verified.
 
 Before deployment, the workflow checks that the ignored EC2 `.env` exists and contains exactly:
 
