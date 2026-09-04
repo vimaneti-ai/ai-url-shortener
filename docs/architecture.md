@@ -22,7 +22,7 @@ graph TD
 
     Client -->|HTTPS short.vinodmaneti.com| HostNginx
     HostNginx -->|HTTP 127.0.0.1:4200| Frontend
-    Frontend -->|HTTP /api/v1/* and /{shortCode}| API
+    Frontend -->|"HTTP /api/v1/* and /{shortCode}"| API
     API <--> Cache
     API -->|create / update / delete / duplicate-check| DB
     API -->|redirect cache miss / mutations| DB
