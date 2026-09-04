@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "CI/CD and AWS Deployment Architecture",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "engineering_profile": "deployment-ownership",
+    "repository": {"url": "https://github.com/vimaneti-ai/ai-url-shortener", "revision": "52d305222c25d5558579ae4f879a927c00ca0165"},
+    "viewBox": [1280, 840],
+    "views": [
+      {"id": "ci", "label": "CI gates", "focus": ["developer", "github_ci"], "note": "Parallel backend and frontend jobs must pass before Docker validation."},
+      {"id": "deploy", "label": "OIDC + SSM", "focus": ["github_ci", "iam", "ssm", "ec2", "compose"], "note": "A main push deploys through short-lived AWS credentials without SSH."},
+      {"id": "health", "label": "Public verification", "focus": ["health_probe", "dns", "host_nginx", "compose"], "note": "The final probe verifies DNS, TLS, nginx, and application health."}
+    ]
+  },
+  "components": [
+    {"id": "developer", "type": "external", "label": "Developer", "sublabel": "push or pull request", "pos": [30, 155], "size": [145, 68], "tag": "source owner", "sources": [{"path": ".github/workflows/ci-deploy.yml", "line": 3, "label": "Triggers"}]},
+    {"id": "github_ci", "type": "cloud", "label": "GitHub Actions CI", "sublabel": "tests · coverage · images · Compose", "pos": [225, 155], "size": [185, 68], "tag": "4 ordered jobs", "sources": [{"path": ".github/workflows/ci-deploy.yml", "line": 12, "label": "Jobs"}, {"path": ".github/workflows/ci-deploy.yml", "line": 64, "label": "Docker gate"}]},
+    {"id": "iam", "type": "security", "label": "AWS IAM role", "sublabel": "GitHub OIDC", "pos": [460, 155], "size": [155, 68], "tag": "temporary credentials", "sources": [{"path": ".github/workflows/ci-deploy.yml", "line": 86, "label": "OIDC permission"}]},
+    {"id": "ssm", "type": "cloud", "label": "AWS Systems Manager", "sublabel": "AWS-RunShellScript", "pos": [665, 155], "size": [175, 68], "tag": "no deploy SSH", "sources": [{"path": ".github/workflows/ci-deploy.yml", "line": 102, "label": "SSM step"}]},
+    {"id": "ec2", "type": "cloud", "label": "EC2 deployment", "sublabel": "git reset origin/main", "pos": [890, 155], "size": [165, 68], "tag": "us-east-2", "sources": [{"path": ".github/workflows/ci-deploy.yml", "line": 116, "label": "Remote script"}]},
+    {"id": "health_probe", "type": "external", "label": "GitHub health probe", "sublabel": "expects only status UP", "pos": [350, 455], "size": [180, 68], "tag": "post-deploy", "sources": [{"path": ".github/workflows/ci-deploy.yml", "line": 184, "label": "Health gate"}]},
+    {"id": "dns", "type": "external", "label": "IONOS DNS", "sublabel": "Elastic IP mapping", "pos": [580, 455], "size": [155, 68], "tag": "documented state", "sources": [{"path": "DEPLOYMENT.md", "line": 136, "label": "DNS setup"}]},
+    {"id": "host_nginx", "type": "security", "label": "Host nginx + Certbot", "sublabel": "HTTPS termination", "pos": [785, 455], "size": [180, 68], "tag": "host-managed", "sources": [{"path": "DEPLOYMENT.md", "line": 146, "label": "HTTPS setup"}]},
+    {"id": "compose", "type": "backend", "label": "Docker Compose stack", "sublabel": "7 health-gated services", "pos": [1015, 455], "size": [185, 68], "tag": "repository-managed", "sources": [{"path": "docker-compose.yml", "line": 2, "label": "Base stack"}, {"path": "docker-compose.prod.yml", "line": 4, "label": "EC2 override"}]}
+  ],
+  "boundaries": [
+    {"kind": "region", "label": "GitHub-managed CI", "wraps": ["github_ci"], "pad": 12},
+    {"kind": "region", "label": "AWS us-east-2 · production", "wraps": ["iam", "ssm", "ec2", "host_nginx", "compose"], "pad": 22},
+    {"kind": "security-group", "label": "EC2 runtime boundary", "wraps": ["ec2", "host_nginx", "compose"], "pad": 14}
+  ],
+  "connections": [
+    {"id": "push", "from": "developer", "to": "github_ci", "label": "push / pull_request", "variant": "emphasis", "route": "straight", "labelAt": [200, 245]},
+    {"id": "oidc", "from": "github_ci", "to": "iam", "label": "main push · OIDC", "variant": "security", "route": "straight", "labelAt": [435, 245]},
+    {"id": "aws_creds", "from": "iam", "to": "ssm", "label": "temporary credentials", "variant": "security", "route": "straight", "labelAt": [640, 245]},
+    {"id": "run_command", "from": "ssm", "to": "ec2", "label": "SSM Run Command", "variant": "emphasis", "route": "straight", "labelAt": [865, 245]},
+    {"id": "deploy", "from": "ec2", "to": "compose", "label": "compose up --build --wait", "route": "orthogonal-v", "labelAt": [1110, 335]},
+    {"id": "probe_dns", "from": "health_probe", "to": "dns", "label": "HTTPS health request", "variant": "dashed", "route": "straight", "labelAt": [555, 545]},
+    {"id": "dns_edge", "from": "dns", "to": "host_nginx", "label": "Elastic IP", "variant": "security", "route": "straight", "labelAt": [760, 537]},
+    {"id": "nginx_app", "from": "host_nginx", "to": "compose", "label": "HTTP localhost:4200", "route": "straight", "labelAt": [990, 545]}
+  ],
+  "cards": [
+    {"dot": "emerald", "title": "CI gates", "items": ["Backend and frontend jobs run in parallel", "Docker images and merged Compose validate afterward", "Pull requests never deploy; main pushes do"]},
+    {"dot": "violet", "title": "Credential boundary", "items": ["OIDC supplies short-lived AWS credentials", "SSM replaces deploy-time SSH", "Grafana password comes from a GitHub secret"]},
+    {"dot": "amber", "title": "Tracked vs host-managed", "items": ["Application, Compose, and workflow are tracked", "DNS, nginx, TLS, IAM trust, and security-group state are documented external configuration"]}
+  ]
+}

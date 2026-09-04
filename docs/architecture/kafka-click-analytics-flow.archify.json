@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Kafka Click Analytics Data Flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1068, 960],
+    "views": [
+      {"id": "event_transit", "label": "Click event transit", "focus": ["controller", "topic", "processor", "click_db"], "note": "The redirect handler hands analytics work to Kafka."},
+      {"id": "geo_enrichment", "label": "Country enrichment", "focus": ["processor", "geo_cache", "providers"], "note": "The consumer pipeline uses a 24-hour cache and two ordered providers."},
+      {"id": "analytics_read", "label": "Analytics read", "focus": ["click_db", "analytics_service", "angular"], "note": "The analytics endpoint aggregates persisted click rows."}
+    ]
+  },
+  "stages": [
+    {"label": "Capture"},
+    {"label": "Transit"},
+    {"label": "Enrich"},
+    {"label": "Persist"},
+    {"label": "Read model"}
+  ],
+  "nodes": [
+    {"id": "controller", "type": "backend", "label": "urlController", "sublabel": "redirect hot path", "stage": 0, "row": 0, "tag": "producer"},
+    {"id": "topic", "type": "messagebus", "label": "url-click-events", "sublabel": "Kafka · 3 partitions", "stage": 1, "row": 0, "tag": "JSON string"},
+    {"id": "processor", "type": "backend", "label": "Consumer + GeoIP", "sublabel": "listener and enrichment", "stage": 2, "row": 0, "tag": "group · concurrency 3"},
+    {"id": "geo_cache", "type": "database", "label": "Redis", "sublabel": "geoip:{ip}", "stage": 3, "row": 2, "tag": "24h TTL"},
+    {"id": "providers", "type": "external", "label": "GeoIP providers", "sublabel": "ipwho.is → ip-api.com", "stage": 3, "row": 3, "tag": "fallback"},
+    {"id": "click_db", "type": "database", "label": "PostgreSQL", "sublabel": "click_events", "stage": 3, "row": 0, "tag": "durable facts"},
+    {"id": "analytics_service", "type": "backend", "label": "AnalyticsService", "sublabel": "aggregate query", "stage": 4, "row": 0, "tag": "last 50 details"},
+    {"id": "angular", "type": "frontend", "label": "Angular analytics", "sublabel": "clicks · visitors · country", "stage": 4, "row": 2, "width": 126, "tag": "GET /api/v1/analytics/{code}"}
+  ],
+  "flows": [
+    {"id": "publish_json", "from": "controller", "to": "topic", "label": "click JSON", "classification": "shortCode · IP · UA · time", "variant": "dashed", "labelAt": [208, 200]},
+    {"id": "consume_json", "from": "topic", "to": "processor", "label": "JSON string", "classification": "@KafkaListener", "variant": "emphasis", "labelDy": 44},
+    {"id": "cache_lookup", "from": "processor", "to": "geo_cache", "label": "GeoIP cache", "classification": "read/write · 24h TTL", "fromSide": "right", "toSide": "left", "via": [[650, 157], [650, 385]], "labelAt": [705, 300]},
+    {"id": "provider_lookup", "from": "processor", "to": "providers", "label": "provider lookup", "classification": "ipwho.is then ip-api.com", "variant": "dashed", "fromSide": "bottom", "toSide": "left", "via": [[530, 520], [650, 520], [650, 499]], "labelAt": [590, 550]},
+    {"id": "persist_click", "from": "processor", "to": "click_db", "label": "enriched click", "classification": "code · IP · UA · country · time", "variant": "emphasis", "labelAt": [638, 100]},
+    {"id": "query_clicks", "from": "click_db", "to": "analytics_service", "label": "click rows", "classification": "count + ordered events", "variant": "default", "labelAt": [853, 200]},
+    {"id": "analytics_response", "from": "analytics_service", "to": "angular", "label": "analytics JSON", "classification": "clicks · visitors · countries · recent", "variant": "emphasis", "route": "bottom-channel", "labelAt": [960, 428]}
+  ],
+  "cards": [
+    {"dot": "violet", "title": "Delivery semantics", "items": ["Producer uses acks=all, idempotence, and three retries", "Consumer failures receive bounded exponential-backoff retries", "No dead-letter topic is configured"]},
+    {"dot": "amber", "title": "Failure behavior", "items": ["Invalid JSON is logged and discarded", "Provider failure resolves country to Unknown", "Kafka failure never blocks the redirect"]},
+    {"dot": "emerald", "title": "Analytics truth", "items": ["PostgreSQL stores every accepted ClickEvent", "Analytics reads PostgreSQL—not Kafka or Redis"]}
+  ]
+}

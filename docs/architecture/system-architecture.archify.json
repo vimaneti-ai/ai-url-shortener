@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "URL Shortener — Runtime Architecture",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {"url": "https://github.com/vimaneti-ai/ai-url-shortener", "revision": "52d305222c25d5558579ae4f879a927c00ca0165"},
+    "viewBox": [1300, 920],
+    "views": [
+      {"id": "request", "label": "Request path", "focus": ["browser", "host_nginx", "frontend", "backend"], "note": "HTTPS enters through host nginx and the containerized frontend proxy."},
+      {"id": "analytics", "label": "Async analytics", "focus": ["backend", "kafka", "processor", "providers", "postgres", "redis"], "note": "Kafka removes click persistence and GeoIP work from redirect latency."},
+      {"id": "metrics", "label": "Metrics path", "focus": ["backend", "prometheus", "grafana"], "note": "Prometheus scrapes the internal Actuator endpoint; Grafana queries Prometheus."}
+    ]
+  },
+  "components": [
+    {"id": "browser", "type": "external", "label": "Browser", "sublabel": "short.vinodmaneti.com", "pos": [10, 210], "size": [130, 68], "sources": [{"path": "Readme.md", "line": 18, "label": "Live URL"}]},
+    {"id": "host_nginx", "type": "security", "label": "EC2 host nginx", "sublabel": "TLS · ports 80/443", "pos": [170, 210], "size": [145, 68], "sources": [{"path": "DEPLOYMENT.md", "line": 98, "label": "Host proxy"}]},
+    {"id": "frontend", "type": "frontend", "label": "Angular + nginx", "sublabel": "SPA · localhost:4200", "pos": [350, 210], "size": [145, 68], "sources": [{"path": "frontend/nginx.conf", "line": 8, "label": "Proxy rules"}, {"path": "docker-compose.prod.yml", "line": 42, "label": "Production binding"}]},
+    {"id": "backend", "type": "backend", "label": "Spring Boot API", "sublabel": "Java 21 · backend:8080", "pos": [530, 210], "size": [160, 68], "sources": [{"path": "src/main/java/com/example/URLShortener/controllers/urlController.java", "line": 49, "label": "Endpoints"}, {"path": "Dockerfile", "line": 12, "label": "Runtime image"}]},
+    {"id": "kafka", "type": "messagebus", "label": "Apache Kafka", "sublabel": "3-partition click topic", "pos": [725, 210], "size": [155, 68], "sources": [{"path": "src/main/java/com/example/URLShortener/config/KafkaConfig.java", "line": 31, "label": "Topic config"}]},
+    {"id": "processor", "type": "backend", "label": "Consumer + GeoIP", "sublabel": "async enrichment", "pos": [915, 210], "size": [155, 68], "sources": [{"path": "src/main/java/com/example/URLShortener/services/ClickEventConsumer.java", "line": 31, "label": "Listener"}, {"path": "src/main/java/com/example/URLShortener/services/GeoIpService.java", "line": 45, "label": "Enrichment"}]},
+    {"id": "providers", "type": "external", "label": "GeoIP providers", "sublabel": "ipwho.is → ip-api.com", "pos": [1105, 210], "size": [165, 68], "sources": [{"path": "src/main/java/com/example/URLShortener/services/GeoIpService.java", "line": 72, "label": "Provider calls"}]},
+    {"id": "redis", "type": "database", "label": "Redis", "sublabel": "URL + GeoIP cache", "pos": [600, 405], "size": [150, 66], "sources": [{"path": "src/main/java/com/example/URLShortener/services/UrlService.java", "line": 202, "label": "URL cache"}, {"path": "src/main/java/com/example/URLShortener/services/GeoIpService.java", "line": 50, "label": "GeoIP cache"}]},
+    {"id": "postgres", "type": "database", "label": "PostgreSQL", "sublabel": "urls + click_events", "pos": [890, 405], "size": [160, 66], "sources": [{"path": "src/main/resources/db/migration/V1__Create_urls_table.sql", "line": 1, "label": "URL table"}, {"path": "src/main/resources/db/migration/V3__Create_click_events_table.sql", "line": 1, "label": "Click table"}]},
+    {"id": "prometheus", "type": "cloud", "label": "Prometheus", "sublabel": "15-second scrape", "pos": [480, 600], "size": [155, 66], "sources": [{"path": "monitoring/prometheus.yml", "line": 1, "label": "Scrape config"}]},
+    {"id": "grafana", "type": "frontend", "label": "Grafana", "sublabel": "provisioned dashboard", "pos": [660, 600], "size": [155, 66], "sources": [{"path": "monitoring/grafana/provisioning/datasources/prometheus.yml", "line": 1, "label": "Datasource"}]}
+  ],
+  "boundaries": [
+    {"kind": "region", "label": "AWS EC2 — documented deployed host", "wraps": ["host_nginx", "frontend", "backend", "kafka", "processor", "redis", "postgres", "prometheus", "grafana"], "pad": 25},
+    {"kind": "security-group", "label": "Docker Compose network", "wraps": ["frontend", "backend", "kafka", "processor", "redis", "postgres", "prometheus", "grafana"], "pad": 14}
+  ],
+  "connections": [
+    {"id": "browser_https", "from": "browser", "to": "host_nginx", "label": "HTTPS", "variant": "security", "route": "straight"},
+    {"id": "host_frontend", "from": "host_nginx", "to": "frontend", "label": "HTTP :4200", "route": "straight", "labelAt": [333, 292]},
+    {"id": "frontend_backend", "from": "frontend", "to": "backend", "label": "API + redirect proxy", "route": "straight", "labelAt": [513, 120]},
+    {"id": "backend_kafka", "from": "backend", "to": "kafka", "label": "async click JSON", "variant": "dashed", "route": "straight", "labelAt": [708, 120]},
+    {"id": "kafka_processor", "from": "kafka", "to": "processor", "label": "@KafkaListener", "variant": "dashed", "route": "straight", "labelAt": [898, 120]},
+    {"id": "processor_providers", "from": "processor", "to": "providers", "label": "country lookup", "route": "straight", "labelAt": [1088, 292]},
+    {"id": "backend_redis", "from": "backend", "to": "redis", "label": "URL cache", "route": "orthogonal-v", "labelAt": [650, 292]},
+    {"id": "backend_postgres", "from": "backend", "to": "postgres", "label": "URL source of truth", "route": "orthogonal-v", "labelAt": [800, 292]},
+    {"id": "processor_postgres", "from": "processor", "to": "postgres", "label": "persist click_events", "route": "orthogonal-v", "labelAt": [1000, 292]},
+    {"id": "prometheus_backend", "from": "prometheus", "to": "backend", "label": "GET /actuator/prometheus", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "via": [[557.5, 320], [610, 320]], "labelAt": [500, 350]},
+    {"id": "prometheus_grafana", "from": "prometheus", "to": "grafana", "label": "PromQL", "route": "straight", "labelAt": [648, 680]}
+  ],
+  "cards": [
+    {"dot": "emerald", "title": "Runtime truth", "items": ["Seven Compose services on one EC2 host", "PostgreSQL is durable state; Redis is bounded cache", "CleanupService deletes expired records hourly"]},
+    {"dot": "violet", "title": "Public boundary", "items": ["Host nginx owns HTTP/HTTPS", "Infrastructure ports bind to localhost", "No load balancer, CDN, cluster, or replica"]}
+  ]
+}

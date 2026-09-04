@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "URL Redirect Request Sequence",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [1000, 1040],
+    "views": [
+      {"id": "entry", "label": "Public request", "focus": ["browser", "host_nginx", "frontend", "controller"], "note": "The public bare short-code path crosses both nginx layers."},
+      {"id": "cache_hit", "label": "Warm cache", "focus": ["controller", "url_service", "redis"], "note": "A warm Redis entry avoids a PostgreSQL read."},
+      {"id": "cache_miss", "label": "Cache fallback", "focus": ["url_service", "redis", "postgres"], "note": "A miss falls back to durable state and repopulates Redis."},
+      {"id": "redirect_event", "label": "Redirect and event", "focus": ["controller", "kafka", "browser"], "note": "Kafka publication is asynchronous and does not delay the 302 response."}
+    ]
+  },
+  "participants": [
+    {"id": "browser", "type": "external", "label": "Browser", "sublabel": "public client"},
+    {"id": "host_nginx", "type": "security", "label": "Host nginx", "sublabel": "TLS boundary"},
+    {"id": "frontend", "type": "frontend", "label": "App nginx", "sublabel": "short-code proxy"},
+    {"id": "controller", "type": "backend", "label": "urlController", "sublabel": "redirect handler"},
+    {"id": "url_service", "type": "backend", "label": "UrlService", "sublabel": "resolution logic"},
+    {"id": "redis", "type": "database", "label": "Redis", "sublabel": "short:{code}"},
+    {"id": "postgres", "type": "database", "label": "PostgreSQL", "sublabel": "urls source of truth"},
+    {"id": "kafka", "type": "messagebus", "label": "Kafka", "sublabel": "url-click-events"}
+  ],
+  "segments": [
+    {"from": 150, "to": 315, "label": "HTTPS entry"},
+    {"from": 330, "to": 625, "label": "Resolve destination"},
+    {"from": 640, "to": 805, "label": "Analytics handoff + redirect"}
+  ],
+  "messages": [
+    {"id": "request", "from": "browser", "to": "host_nginx", "y": 185, "label": "GET /{shortCode} over HTTPS", "variant": "security"},
+    {"id": "host_forward", "from": "host_nginx", "to": "frontend", "y": 228, "label": "HTTP to 127.0.0.1:4200", "variant": "default"},
+    {"id": "frontend_proxy", "from": "frontend", "to": "controller", "y": 275, "label": "proxy bare short-code path", "variant": "emphasis"},
+    {"id": "resolve", "from": "controller", "to": "url_service", "y": 355, "label": "getOriginalUrl(shortCode)", "variant": "emphasis"},
+    {"id": "cache_read", "from": "url_service", "to": "redis", "y": 400, "label": "GET short:{code}", "variant": "default"},
+    {"id": "cache_result", "from": "redis", "to": "url_service", "y": 440, "label": "destination or cache miss", "variant": "return", "note": "Redis failures are retried, then treated as a miss."},
+    {"id": "db_fallback", "from": "url_service", "to": "postgres", "y": 495, "label": "find active URL on miss", "variant": "dashed"},
+    {"id": "db_result", "from": "postgres", "to": "url_service", "y": 535, "label": "URL row or not found", "variant": "return"},
+    {"id": "cache_fill", "from": "url_service", "to": "redis", "y": 580, "label": "SET with expiry-bounded TTL", "variant": "dashed"},
+    {"id": "resolved", "from": "url_service", "to": "controller", "y": 620, "label": "long URL", "variant": "return"},
+    {"id": "publish", "from": "controller", "to": "kafka", "y": 680, "label": "send ClickEventMessage JSON", "variant": "dashed", "note": "Skipped for browser-prefetch/link-preview requests."},
+    {"id": "redirect", "from": "controller", "to": "frontend", "y": 730, "label": "302 Location: long URL", "variant": "return"},
+    {"id": "redirect_host", "from": "frontend", "to": "host_nginx", "y": 765, "label": "302 response", "variant": "return"},
+    {"id": "redirect_browser", "from": "host_nginx", "to": "browser", "y": 800, "label": "302 response", "variant": "return"}
+  ],
+  "activations": [
+    {"participant": "host_nginx", "from": 180, "to": 805, "type": "security"},
+    {"participant": "frontend", "from": 225, "to": 770, "type": "frontend"},
+    {"participant": "controller", "from": 270, "to": 735, "type": "backend"},
+    {"participant": "url_service", "from": 350, "to": 625, "type": "backend"},
+    {"participant": "redis", "from": 395, "to": 585, "type": "database"},
+    {"participant": "postgres", "from": 490, "to": 540, "type": "database"},
+    {"participant": "kafka", "from": 675, "to": 720, "type": "messagebus"}
+  ],
+  "cards": [
+    {"dot": "emerald", "title": "Warm path", "items": ["Redis returns the destination without a PostgreSQL read", "Cache TTL never outlives link expiration"]},
+    {"dot": "amber", "title": "Fallbacks", "items": ["Redis exhaustion falls back to PostgreSQL", "Missing, inactive, or expired links do not redirect"]},
+    {"dot": "violet", "title": "Latency boundary", "items": ["Kafka send is asynchronous", "A publish failure is logged but does not fail the redirect", "Prefetch requests redirect without publishing a click"]}
+  ]
+}
