@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive architecture diagrams for the AI URL Shortener project">
+  <title>URL Shortener Architecture</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f6fa;
+      --surface: #ffffff;
+      --text: #17151f;
+      --muted: #65616f;
+      --border: #e4e1ea;
+      --accent: #6326c9;
+      --shadow: 0 16px 45px rgba(30, 20, 50, .08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.6 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { width: min(1080px, calc(100% - 32px)); margin: 0 auto; padding: 64px 0; }
+    header { max-width: 760px; margin-bottom: 36px; }
+    .eyebrow { color: var(--accent); font-size: .78rem; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 8px 0 12px; font-size: clamp(2.25rem, 6vw, 4.5rem); line-height: 1.05; letter-spacing: -.055em; }
+    header p { margin: 0; color: var(--muted); font-size: 1.08rem; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .card {
+      display: block;
+      min-height: 210px;
+      padding: 26px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      color: inherit;
+      text-decoration: none;
+      transition: transform .18s ease, border-color .18s ease;
+    }
+    .card:hover { transform: translateY(-3px); border-color: var(--accent); }
+    .number { color: var(--accent); font-size: .78rem; font-weight: 750; letter-spacing: .08em; }
+    h2 { margin: 32px 0 8px; font-size: 1.35rem; line-height: 1.25; }
+    .card p { margin: 0; color: var(--muted); }
+    footer { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 34px; color: var(--muted); font-size: .92rem; }
+    footer a { color: var(--accent); text-decoration: none; font-weight: 650; }
+    @media (max-width: 720px) {
+      main { padding: 36px 0; }
+      .grid { grid-template-columns: 1fr; }
+      .card { min-height: auto; }
+      h2 { margin-top: 20px; }
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #111016; --surface: #1b1921; --text: #f5f2fa; --muted: #aaa4b5; --border: #332f3c; --accent: #a77aff; --shadow: 0 16px 45px rgba(0, 0, 0, .25); }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">URL Shortener</div>
+      <h1>Architecture diagrams</h1>
+      <p>Explore four interactive, repository-grounded views of the application, its data flows, and its AWS deployment.</p>
+    </header>
+
+    <section class="grid" aria-label="Architecture diagrams">
+      <a class="card" href="architecture/system-architecture.html">
+        <span class="number">01 · SYSTEM</span>
+        <h2>High-level system architecture</h2>
+        <p>Request routing, Docker Compose services, storage, asynchronous analytics, and observability.</p>
+      </a>
+      <a class="card" href="architecture/url-redirect-sequence.html">
+        <span class="number">02 · SEQUENCE</span>
+        <h2>URL redirect request</h2>
+        <p>Redis lookup, PostgreSQL fallback, expiration checks, Kafka publication, and the redirect response.</p>
+      </a>
+      <a class="card" href="architecture/kafka-click-analytics-flow.html">
+        <span class="number">03 · DATA FLOW</span>
+        <h2>Kafka click analytics</h2>
+        <p>Click-event publication, consumption, GeoIP enrichment, persistence, and analytics queries.</p>
+      </a>
+      <a class="card" href="architecture/cicd-aws-deployment.html">
+        <span class="number">04 · DELIVERY</span>
+        <h2>CI/CD and AWS deployment</h2>
+        <p>GitHub Actions validation, AWS OIDC, SSM deployment, HTTPS routing, and the health gate.</p>
+      </a>
+    </section>
+
+    <footer>
+      <a href="https://github.com/vimaneti-ai/ai-url-shortener">Source repository</a>
+      <a href="https://short.vinodmaneti.com">Live application</a>
+      <a href="architecture.md">Architecture documentation</a>
+    </footer>
+  </main>
+</body>
+</html>
