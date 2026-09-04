@@ -5,6 +5,10 @@ choices were made (Base62 vs. hashing, manual Redis caching, Kafka decoupling, e
 [`design-decisions.md`](design-decisions.md). For scope and assumptions, see
 [`requirements.md`](requirements.md).
 
+For polished, interactive versions of the system architecture, redirect sequence, Kafka analytics
+flow, and AWS CI/CD deployment, open the
+**[architecture diagram gallery](https://vimaneti-ai.github.io/ai-url-shortener/)**.
+
 ## System diagram
 
 ```mermaid

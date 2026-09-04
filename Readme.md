@@ -26,6 +26,13 @@ Angular/nginx container. PostgreSQL, Redis, Kafka, and the Spring Boot container
 exposed to the internet. See [`DEPLOYMENT.md`](DEPLOYMENT.md) for the deployed topology and
 reproduction steps.
 
+## Interactive architecture diagrams
+
+Explore the system architecture, URL redirect lifecycle, Kafka analytics pipeline, and AWS CI/CD
+deployment in the public interactive diagram gallery:
+
+**[View interactive architecture diagrams](https://vimaneti-ai.github.io/ai-url-shortener/)**
+
 ---
 
 ## Features
@@ -73,37 +80,45 @@ In production, the browser first reaches system nginx over HTTPS; it forwards to
 container, which proxies `/api/*` and the restricted health endpoint to Spring Boot over the
 private Docker network.
 
+```mermaid
+flowchart TD
+    Browser(["Browser"])
+
+    subgraph Sync["Redirect path — synchronous"]
+        direction LR
+        Controller["urlController"]
+        Service["UrlService"]
+        Redis[("Redis cache")]
+    end
+
+    Postgres[("PostgreSQL")]
+
+    subgraph Async["Click analytics — async, off the hot path"]
+        direction LR
+        Kafka[["Kafka topic:\nurl-click-events"]]
+        Consumer["ClickEventConsumer\n@KafkaListener"]
+        GeoIP["GeoIpService\nipwho.is / ip-api.com"]
+    end
+
+    Browser -->|"POST /api/v1/shorten\nGET /{code}"| Controller
+    Controller --> Service
+    Service <--> Redis
+    Service --> Postgres
+    Controller -.->|"302 redirect"| Browser
+    Controller -.->|"fire-and-forget publish, ~1ms"| Kafka
+    Kafka -.-> Consumer
+    Consumer --> GeoIP
+    Consumer --> Postgres
+
+    classDef sync fill:#ede9fe,stroke:#7c3aed,color:#3b0764;
+    classDef async fill:#fef3c7,stroke:#d97706,color:#78350f;
+    classDef store fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e;
+    class Controller,Service sync;
+    class Kafka,Consumer,GeoIP async;
+    class Postgres,Redis store;
 ```
-┌──────────────┐       ┌──────────────────────────────────────────────┐
-│   Browser    │       │             Spring Boot App                  │
-│              │──────▶│                                              │
-│  POST /api   │       │  urlController ──▶ UrlService ──▶ PostgreSQL │
-│              │       │       │                  │                   │
-│  GET /{code} │       │       │ resolve()        │ Redis Cache       │
-│              │◀──302─│       ▼                  ▼                   │
-│              │       │  KafkaTemplate.send()  (fire-and-forget)     │
-└──────────────┘       └──────────┬───────────────────────────────────┘
-                                  │ async publish
-                                  ▼
-                          ┌──────────────┐
-                          │    Kafka     │
-                          │  (KRaft)    │
-                          │             │
-                          │ Topic:      │
-                          │ url-click-  │
-                          │ events      │
-                          └──────┬───────┘
-                                 │
-                                 ▼
-                       ┌──────────────────┐
-                       │ ClickEvent       │
-                       │ Consumer         │
-                       │                  │
-                       │ @KafkaListener   │
-                       │ ──▶ GeoIpService │ (ipwho.is / ip-api.com, Redis-cached)
-                       │ ──▶ DB INSERT    │
-                       └──────────────────┘
-```
+
+**Purple** = the synchronous redirect path (must be fast). **Orange** = the async analytics path (decoupled via Kafka, never blocks a redirect). **Blue** = the two datastores both paths touch.
 
 **Without Kafka** (the unused `AnalyticsService.recordClick()` path, kept as a reference point): `GET /{code}` → Redis lookup → synchronous DB INSERT → 302 redirect — the redirect waits on a write it doesn't need to.
 
