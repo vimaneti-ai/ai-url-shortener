@@ -20,21 +20,21 @@ graph TD
     GeoIP[GeoIpService]
     CronJob[CleanupService — hourly @Scheduled]
 
-    Client -->|HTTPS short.vinodmaneti.com| HostNginx
-    HostNginx -->|HTTP 127.0.0.1:4200| Frontend
+    Client -->|"HTTPS short.vinodmaneti.com"| HostNginx
+    HostNginx -->|"HTTP 127.0.0.1:4200"| Frontend
     Frontend -->|"HTTP /api/v1/* and /{shortCode}"| API
     API <--> Cache
-    API -->|create / update / delete / duplicate-check| DB
-    API -->|redirect cache miss / mutations| DB
+    API -->|"create / update / delete / duplicate-check"| DB
+    API -->|"redirect cache miss / mutations"| DB
 
-    API -.->|asynchronous click publish| Kafka
-    Kafka -.->|@KafkaListener| Consumer
-    Consumer -->|resolve country| GeoIP
+    API -.->|"asynchronous click publish"| Kafka
+    Kafka -.->|"@KafkaListener"| Consumer
+    Consumer -->|"resolve country"| GeoIP
     GeoIP <--> Cache
-    Consumer -->|persist click_events| DB
+    Consumer -->|"persist click_events"| DB
 
-    CronJob -.->|hard-delete expired urls + click_events| DB
-    CronJob -.->|evict short:/long: Redis keys| Cache
+    CronJob -.->|"hard-delete expired urls + click_events"| DB
+    CronJob -.->|"evict short:/long: Redis keys"| Cache
 ```
 
 This is genuinely everything that runs: one Spring Boot process, one Postgres instance, one Redis
