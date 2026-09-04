@@ -102,16 +102,28 @@ jobs:
       - name: Deploy through SSM Run Command
         env:
           INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
         run: |
           set -euo pipefail
 
-          deploy_script=$(cat <<'SCRIPT'
+          # Base64-encode on the runner so the raw secret never sits inside a
+          # quote-sensitive shell string (this script is nested inside a JSON
+          # payload and a further single-quoted `bash -lc '...'` on the
+          # remote host) — a password containing a `'` or `$` would otherwise
+          # be able to break out of that quoting.
+          grafana_password_b64=$(printf '%s' "$GRAFANA_ADMIN_PASSWORD" | base64 -w0)
+
+          deploy_script=$(cat <<SCRIPT
           sudo -u ubuntu -H bash -lc '
             set -euo pipefail
             cd /home/ubuntu/ai-url-shortener
             test -f .env
             grep -qx "FRONTEND_PORT=4200" .env
             grep -qx "APP_BASE_URL=https://short.vinodmaneti.com" .env
+            grafana_password=\$(printf "%s" "${grafana_password_b64}" | base64 -d)
+            grep -v "^GRAFANA_ADMIN_PASSWORD=" .env > .env.tmp || true
+            mv .env.tmp .env
+            printf "GRAFANA_ADMIN_PASSWORD=%s\n" "\$grafana_password" >> .env
             git fetch origin main
             git reset --hard origin/main
             COMPOSE_PARALLEL_LIMIT=1 docker compose \

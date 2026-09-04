@@ -43,3 +43,16 @@ services:
     mem_limit: 100m
     ports: !override
       - "127.0.0.1:${FRONTEND_PORT:-4200}:80"
+
+  prometheus:
+    mem_limit: 200m
+    ports: !override
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+
+  grafana:
+    environment:
+      GF_SERVER_ROOT_URL: https://short.vinodmaneti.com/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+    mem_limit: 150m
+    ports: !override
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
